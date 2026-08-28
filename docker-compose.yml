@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: velora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set_POSTGRES_PASSWORD in your local .env file}
+      POSTGRES_DB: velora
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - velora-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U velora -d velora']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  velora-postgres:

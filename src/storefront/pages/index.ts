@@ -1,0 +1,7 @@
+export { About } from './AboutPage'
+export { Account } from './AccountPage'
+export { Cart } from './CartPage'
+export { Catalog } from './CatalogPage'
+export { Checkout } from './CheckoutPage'
+export { Home } from './HomePage'
+export { ProductView } from './ProductPage'

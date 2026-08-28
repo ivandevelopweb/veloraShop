@@ -1,0 +1,6 @@
+export { Categories } from './CategoriesPage'
+export { Dashboard } from './DashboardPage'
+export { OrderDetail } from './OrderDetailPage'
+export { Orders } from './OrdersPage'
+export { ProductEditor } from './ProductEditorPage'
+export { Products } from './ProductsPage'
