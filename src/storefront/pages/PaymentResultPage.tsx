@@ -51,8 +51,9 @@ export function PaymentResult({ loading, onNavigate, onSettled }) {
         const response = await api.getLiqpayPayment(code)
         if (!active) return
         setStatus(response.order.paymentStatus)
-        if (response.order.paymentStatus === 'paid') void onSettledRef.current()
-        if (response.order.paymentStatus === 'pending' && attempts < 20) {
+        if (response.order.paymentStatus !== 'pending') {
+          void onSettledRef.current()
+        } else if (attempts < 20) {
           attempts += 1
           timer = window.setTimeout(() => void poll(), 1_500)
         }
@@ -76,6 +77,7 @@ export function PaymentResult({ loading, onNavigate, onSettled }) {
     try {
       const response = await api.cancelLiqpayPayment(code)
       setStatus(response.order.paymentStatus)
+      if (response.order.paymentStatus !== 'pending') await onSettledRef.current()
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Не вдалося скасувати спробу оплати.')
     } finally {
