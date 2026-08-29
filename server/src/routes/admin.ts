@@ -239,7 +239,7 @@ adminRouter.get(
         `SELECT
            COUNT(*)::text AS "totalOrders",
            COUNT(*) FILTER (WHERE status IN ('new', 'processing', 'shipped'))::text AS "openOrders",
-           COALESCE(SUM(total_uah) FILTER (WHERE status <> 'cancelled'), 0)::text AS "revenueUah"
+           COALESCE(SUM(total_uah) FILTER (WHERE payment_status = 'paid'), 0)::text AS "revenueUah"
          FROM orders`,
       ),
       pool.query<{ id: number; name: string; stock: number }>(
@@ -754,15 +754,21 @@ adminRouter.get(
     const { rows } = await pool.query<{
       code: string
       status: string
+      paymentStatus: string
+      paymentProvider: string | null
+      providerPaymentId: string | null
       total: number
       customerName: string
       customerEmail: string
       createdAt: string
     }>(
       `SELECT
-         code,
-         status,
-         total_uah AS total,
+          code,
+          status,
+          payment_status AS "paymentStatus",
+          payment_provider AS "paymentProvider",
+          provider_payment_id AS "providerPaymentId",
+          total_uah AS total,
          customer_name AS "customerName",
          customer_email AS "customerEmail",
          created_at AS "createdAt"
@@ -790,6 +796,9 @@ adminRouter.get(
       id: string
       code: string
       status: (typeof orderStatuses)[number]
+      paymentStatus: 'pending' | 'paid' | 'failed' | 'cancelled'
+      paymentProvider: string | null
+      providerPaymentId: string | null
       total: number
       deliveryMethod: string
       deliveryCity: string
@@ -802,9 +811,12 @@ adminRouter.get(
     }>(
       `SELECT
          id,
-         code,
-         status,
-         total_uah AS total,
+          code,
+          status,
+          payment_status AS "paymentStatus",
+          payment_provider AS "paymentProvider",
+          provider_payment_id AS "providerPaymentId",
+          total_uah AS total,
          delivery_method AS "deliveryMethod",
          delivery_city AS "deliveryCity",
          delivery_branch AS "deliveryBranch",
@@ -867,14 +879,27 @@ adminRouter.patch(
       const currentResult = await client.query<{
         id: string
         status: (typeof orderStatuses)[number]
-      }>('SELECT id, status FROM orders WHERE code = $1 FOR UPDATE', [code])
+        paymentStatus: 'pending' | 'paid' | 'failed' | 'cancelled'
+      }>(
+        `SELECT id, status, payment_status AS "paymentStatus"
+         FROM orders
+         WHERE code = $1
+         FOR UPDATE`,
+        [code],
+      )
       const current = currentResult.rows[0]
       if (!current) throw new ApiError(404, 'Замовлення не знайдено')
       if (!orderTransitions[current.status].includes(status)) {
         throw new ApiError(409, 'Цей перехід статусу недоступний')
       }
+      if (status !== 'cancelled' && current.paymentStatus !== 'paid') {
+        throw new ApiError(409, 'Спершу дочекайтеся підтвердження оплати LiqPay')
+      }
+      if (status === 'cancelled' && current.paymentStatus === 'pending') {
+        throw new ApiError(409, 'Незавершену оплату може скасувати лише покупець на сторінці оплати')
+      }
 
-      if (status === 'cancelled') {
+      if (status === 'cancelled' && current.paymentStatus === 'paid') {
         const { rows: items } = await client.query<{ productId: number; quantity: number }>(
           'SELECT product_id AS "productId", quantity FROM order_items WHERE order_id = $1',
           [current.id],

@@ -6,6 +6,7 @@ import { authRouter } from './routes/auth.js'
 import { cartRouter } from './routes/cart.js'
 import { categoriesRouter } from './routes/categories.js'
 import { ordersRouter } from './routes/orders.js'
+import { paymentsRouter } from './routes/payments.js'
 import { productsRouter } from './routes/products.js'
 import { adminRouter } from './routes/admin.js'
 import { config } from './config.js'
@@ -62,6 +63,11 @@ app.get('/api/auth/csrf', (_request, response) => {
 app.use('/api/auth', authRouter)
 app.use('/api/cart', cartRouter)
 app.use('/api/orders', ordersRouter)
+app.use(
+  '/api/payments/liqpay/callback',
+  express.urlencoded({ extended: false, limit: '20kb', parameterLimit: 2 }),
+)
+app.use('/api/payments', paymentsRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/categories', categoriesRouter)
 app.use('/api/admin', adminRouter)

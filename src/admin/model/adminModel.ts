@@ -26,6 +26,13 @@ export const statusLabel: Record<AdminOrder['status'], string> = {
   cancelled: 'Скасовано',
 }
 
+export const paymentStatusLabel: Record<AdminOrder['paymentStatus'], string> = {
+  pending: 'Очікується',
+  paid: 'Оплачено',
+  failed: 'Відхилено',
+  cancelled: 'Скасовано',
+}
+
 export const productStatusLabel: Record<AdminProduct['status'], string> = {
   draft: 'Чернетка',
   active: 'Активний',

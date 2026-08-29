@@ -59,7 +59,7 @@ The callback endpoint is public and has no CSRF requirement because it does not 
 
 Only `success` transitions an order to `paid`. `error` and `failure` become `failed`; `reversed` becomes `cancelled`; non-final states remain `pending`. Repeated callbacks lock the same order and perform no second stock decrement, cart clear or state event.
 
-On a first successful callback the callback transaction locks product rows, verifies availability and stock again, decrements each quantity, clears the customer cart and sets `paid_at`. A stock conflict is retained as an explicit server-side operational error rather than falsely reporting payment success; it is not silently converted into fulfilment. In normal Sandbox testing, each checkout starts from valid stock.
+On a first successful callback the callback transaction locks product rows, verifies availability and stock again, decrements each quantity and sets `paid_at`. It removes only cart items that still exactly match the paid order, and leaves the cart intact if it belongs to a newer pending payment. A stock conflict is retained as an explicit server-side operational error rather than falsely reporting payment success; it is not silently converted into fulfilment. In normal Sandbox testing, each checkout starts from valid stock.
 
 Administrative fulfilment transitions are allowed only after `payment_status = paid`, except that unpaid failed or cancelled orders can be recorded as cancelled without any stock restoration. Cancelling a paid order restores stock once, preserving the current fulfilment semantics.
 
@@ -94,5 +94,5 @@ The existing `POST /api/orders` mock-creation path is removed so no browser rout
 
 - Build: `npm run build`, `npm run build:server`, `npm run lint`.
 - Browser: production health check; successful, declined and cancelled LiqPay Sandbox flows; desktop and mobile checkout/result screens.
-- Database state: pending does not deduct stock or clear cart; verified success does both once; failed/cancelled does neither; duplicate callback is idempotent.
+- Database state: pending does not deduct stock or alter cart; verified success deducts stock once and removes only matching paid cart items; failed/cancelled does neither; duplicate callback is idempotent.
 - Access control: unauthenticated checkout/status/cancel requests fail; one customer cannot inspect or cancel another customer's order; an invalid callback signature cannot mutate orders.

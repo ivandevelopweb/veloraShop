@@ -36,6 +36,19 @@ const rawConfig = z
       (value) => (value === '' ? undefined : value),
       z.string().trim().min(1).optional(),
     ),
+    LIQPAY_PUBLIC_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    LIQPAY_PRIVATE_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    LIQPAY_SANDBOX: z.enum(['true', 'false']).optional(),
+    LIQPAY_CALLBACK_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().max(510).optional(),
+    ),
   })
   .refine(
     (value) => Boolean(value.ADMIN_EMAIL) === Boolean(value.ADMIN_PASSWORD),
@@ -49,6 +62,29 @@ const rawConfig = z
     ]
     return credentials.every(Boolean) || credentials.every((credential) => !credential)
   }, 'All Cloudinary credentials must be set together')
+  .refine(
+    (value) => Boolean(value.LIQPAY_PUBLIC_KEY) === Boolean(value.LIQPAY_PRIVATE_KEY),
+    'LIQPAY_PUBLIC_KEY and LIQPAY_PRIVATE_KEY must be set together',
+  )
+  .refine(
+    (value) => !value.LIQPAY_PUBLIC_KEY || value.LIQPAY_SANDBOX === 'true',
+    'LIQPAY_SANDBOX must be true whenever LiqPay credentials are configured',
+  )
+  .refine(
+    (value) =>
+      !value.LIQPAY_PUBLIC_KEY ||
+      value.LIQPAY_SANDBOX !== 'true' ||
+      value.LIQPAY_PUBLIC_KEY.startsWith('sandbox_'),
+    'Sandbox LiqPay keys must use the sandbox_ public key',
+  )
+  .refine((value) => {
+    if (!value.LIQPAY_CALLBACK_URL) return true
+    try {
+      return new URL(value.LIQPAY_CALLBACK_URL).protocol === 'https:'
+    } catch {
+      return false
+    }
+  }, 'LIQPAY_CALLBACK_URL must use HTTPS')
   .parse(process.env)
 
 const clientOrigins = (rawConfig.CLIENT_ORIGINS ?? localClientOrigins)
@@ -76,6 +112,9 @@ if (rawConfig.NODE_ENV === 'production') {
   ) {
     throw new Error('CLIENT_ORIGINS must contain exact HTTPS origins in production')
   }
+  if (!rawConfig.LIQPAY_PUBLIC_KEY || !rawConfig.LIQPAY_PRIVATE_KEY) {
+    throw new Error('LIQPAY_PUBLIC_KEY and LIQPAY_PRIVATE_KEY must be set in production')
+  }
 }
 
 export const config = {
@@ -101,6 +140,18 @@ export const config = {
           cloudName: rawConfig.CLOUDINARY_CLOUD_NAME,
           apiKey: rawConfig.CLOUDINARY_API_KEY,
           apiSecret: rawConfig.CLOUDINARY_API_SECRET,
+        }
+      : undefined,
+  liqpay:
+    rawConfig.LIQPAY_PUBLIC_KEY && rawConfig.LIQPAY_PRIVATE_KEY
+      ? {
+          publicKey: rawConfig.LIQPAY_PUBLIC_KEY,
+          privateKey: rawConfig.LIQPAY_PRIVATE_KEY,
+          sandbox: rawConfig.LIQPAY_SANDBOX === 'true',
+          resultUrl: new URL('/payment/result', clientOrigins[0]).toString(),
+          callbackUrl:
+            rawConfig.LIQPAY_CALLBACK_URL ??
+            'https://velora-api-cg44.onrender.com/api/payments/liqpay/callback',
         }
       : undefined,
 }

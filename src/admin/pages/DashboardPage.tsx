@@ -25,7 +25,7 @@ export function Dashboard({ onNavigate }: { onNavigate: (route: RouteState) => v
   if (error) return <AdminError message={error} />
   if (!data) return <AdminLoading />
   const metrics = [
-    ['Виручка', formatPrice(data.orders.revenueUah), 'Тестові замовлення без реальних списань'],
+    ['Виручка', formatPrice(data.orders.revenueUah), 'Лише підтверджені LiqPay платежі'],
     ['Відкриті замовлення', String(data.orders.openOrders), `Усього: ${data.orders.totalOrders}`],
     [
       'Активні товари',

@@ -72,6 +72,9 @@ export type AdminProduct = {
 export type AdminOrder = {
   code: string
   status: 'new' | 'processing' | 'shipped' | 'completed' | 'cancelled'
+  paymentStatus: PaymentStatus
+  paymentProvider: string | null
+  providerPaymentId: string | null
   total: number
   customerName: string
   customerEmail: string
@@ -120,9 +123,17 @@ export type CartItem = {
 export type Order = {
   code: string
   status: string
+  paymentStatus: PaymentStatus
   total: number
   createdAt: string
   deliveryMethod: string
+}
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled'
+
+export type LiqpayCheckout = {
+  data: string
+  signature: string
 }
 
 export type CheckoutDetails = {

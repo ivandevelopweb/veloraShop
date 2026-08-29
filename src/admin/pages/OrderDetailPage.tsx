@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, type AdminOrder, type AdminOrderDetails } from '../../api'
 import { AdminError, AdminLoading, AdminTitle } from '../components/AdminComponents'
-import { formatDate, formatPrice, statusLabel, type RouteState } from '../model/adminModel'
+import {
+  formatDate,
+  formatPrice,
+  paymentStatusLabel,
+  statusLabel,
+  type RouteState,
+} from '../model/adminModel'
 
 export function OrderDetail({
   code,
@@ -27,21 +33,23 @@ export function OrderDetail({
       active = false
     }
   }, [code])
-  const available = useMemo(
-    () =>
-      order
-        ? (
-            {
-              new: ['processing', 'cancelled'],
-              processing: ['shipped', 'cancelled'],
-              shipped: ['completed'],
-              completed: [],
-              cancelled: [],
-            } as const
-          )[order.status]
-        : [],
-    [order],
-  )
+  const available = useMemo(() => {
+    if (!order) return []
+    const transitions = (
+      {
+        new: ['processing', 'cancelled'],
+        processing: ['shipped', 'cancelled'],
+        shipped: ['completed'],
+        completed: [],
+        cancelled: [],
+      } as const
+    )[order.status]
+    return transitions.filter(
+      (next) =>
+        (next === 'cancelled' && order.paymentStatus !== 'pending') ||
+        (next !== 'cancelled' && order.paymentStatus === 'paid'),
+    )
+  }, [order])
   const changeStatus = async (status: AdminOrder['status']) => {
     if (!order || status === order.status) return
     setSaving(true)
@@ -107,6 +115,14 @@ export function OrderDetail({
           <h2>
             <span className={`status status-${order.status}`}>{statusLabel[order.status]}</span>
           </h2>
+          <p>Оплата</p>
+          <h2>
+            <span className={`status payment-status payment-${order.paymentStatus}`}>
+              {paymentStatusLabel[order.paymentStatus]}
+            </span>
+          </h2>
+          {order.paymentProvider && <small>Провайдер: {order.paymentProvider}</small>}
+          {order.providerPaymentId && <small>Payment ID: {order.providerPaymentId}</small>}
           {available.length > 0 && (
             <select
               disabled={saving}

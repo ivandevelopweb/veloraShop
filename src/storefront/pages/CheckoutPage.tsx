@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatPrice } from '../../shared/lib/format'
 import { Icon } from '../../shared/ui/Icon'
 import { Summary } from '../components/StorefrontComponents'
@@ -7,9 +7,10 @@ const price = formatPrice
 
 export function Checkout({ cart, onNavigate, onComplete }) {
   const [delivery, setDelivery] = useState('Нова пошта')
-  const [orderCode, setOrderCode] = useState('')
+  const [checkout, setCheckout] = useState(null)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const paymentFormRef = useRef(null)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const deliveryCost = subtotal >= 1500 || !subtotal ? 0 : 90
 
@@ -20,7 +21,7 @@ export function Checkout({ cart, onNavigate, onComplete }) {
     const form = new FormData(event.currentTarget)
 
     try {
-      const order = await onComplete({
+      const payment = await onComplete({
         firstName: form.get('firstName'),
         lastName: form.get('lastName'),
         phone: form.get('phone'),
@@ -29,7 +30,7 @@ export function Checkout({ cart, onNavigate, onComplete }) {
         branch: form.get('branch'),
         deliveryMethod: delivery === 'Нова пошта' ? 'nova_poshta' : 'velora_courier',
       })
-      setOrderCode(order.code)
+      setCheckout(payment)
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -41,20 +42,39 @@ export function Checkout({ cart, onNavigate, onComplete }) {
     }
   }
 
-  if (orderCode)
+  useEffect(() => {
+    if (!checkout) return
+    const timer = window.requestAnimationFrame(() => paymentFormRef.current?.submit())
+    return () => window.cancelAnimationFrame(timer)
+  }, [checkout])
+
+  if (checkout)
     return (
       <main className="main-content confirmation">
         <div className="confirmation-mark">
-          <Icon name="check" size={38} />
+          <Icon name="shield" size={38} />
         </div>
-        <p className="eyebrow">Velora каже</p>
-        <h1>Усе добре!</h1>
+        <p className="eyebrow">Velora · захищена оплата</p>
+        <h1>Переходимо до LiqPay</h1>
         <p>
-          Замовлення <b>№ {orderCode}</b> створене. У цьому прототипі оплата не списується —
-          підключимо її на наступному етапі.
+          Замовлення <b>№ {checkout.order.code}</b> очікує на оплату. Дані картки вводяться лише
+          на захищеній сторінці LiqPay Sandbox — гроші не списуються.
         </p>
-        <button className="button-dark" onClick={() => onNavigate('home')}>
-          Повернутися на головну <Icon name="arrow" size={17} />
+        <form action="https://www.liqpay.ua/api/3/checkout" method="post" ref={paymentFormRef}>
+          <input type="hidden" name="data" value={checkout.checkout.data} />
+          <input type="hidden" name="signature" value={checkout.checkout.signature} />
+          <button className="button-dark" type="submit">
+            Відкрити LiqPay <Icon name="arrow" size={17} />
+          </button>
+        </form>
+        <button
+          className="text-link"
+          type="button"
+          onClick={() =>
+            window.location.assign(`/payment/result?order=${encodeURIComponent(checkout.order.code)}`)
+          }
+        >
+          Перейти до статусу оплати
         </button>
       </main>
     )
@@ -127,11 +147,11 @@ export function Checkout({ cart, onNavigate, onComplete }) {
           </section>
           <section>
             <h2>Оплата</h2>
-            <div className="payment-stub">
+            <div className="payment-option">
               <Icon name="shield" size={20} />
               <span>
-                <b>Онлайн-оплата</b>
-                <small>Тестовий режим — гроші не списуються.</small>
+                <b>Безпечна оплата через LiqPay</b>
+                <small>Sandbox: карткові дані не потрапляють до Velora.</small>
               </span>
             </div>
           </section>
@@ -139,7 +159,7 @@ export function Checkout({ cart, onNavigate, onComplete }) {
         <Summary
           subtotal={subtotal}
           delivery={deliveryCost}
-          button={isSubmitting ? 'Створюємо замовлення…' : 'Підтвердити й оплатити'}
+          button={isSubmitting ? 'Готуємо захищену оплату…' : 'Підтвердити й оплатити'}
           submit
         >
           <div className="checkout-items">

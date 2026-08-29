@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { api, type AdminOrder } from '../../api'
 import { AdminError, AdminTitle, EmptyState } from '../components/AdminComponents'
-import { formatDate, formatPrice, statusLabel, type RouteState } from '../model/adminModel'
+import {
+  formatDate,
+  formatPrice,
+  paymentStatusLabel,
+  statusLabel,
+  type RouteState,
+} from '../model/adminModel'
 
 export function Orders({ onNavigate }: { onNavigate: (route: RouteState) => void }) {
   const [orders, setOrders] = useState<AdminOrder[]>([])
@@ -46,6 +52,7 @@ export function Orders({ onNavigate }: { onNavigate: (route: RouteState) => void
                   <th>Замовлення</th>
                   <th>Клієнт</th>
                   <th>Сума</th>
+                  <th>Оплата</th>
                   <th>Статус</th>
                   <th>Створено</th>
                 </tr>
@@ -67,6 +74,12 @@ export function Orders({ onNavigate }: { onNavigate: (route: RouteState) => void
                     </td>
                     <td>
                       <b>{formatPrice(order.total)}</b>
+                    </td>
+                    <td>
+                      <span className={`status payment-status payment-${order.paymentStatus}`}>
+                        {paymentStatusLabel[order.paymentStatus]}
+                      </span>
+                      {order.paymentProvider && <small>{order.paymentProvider}</small>}
                     </td>
                     <td>
                       <span className={`status status-${order.status}`}>

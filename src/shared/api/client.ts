@@ -5,6 +5,8 @@ import type {
   CartItem,
   Category,
   CheckoutDetails,
+  LiqpayCheckout,
+  PaymentStatus,
   Order,
   ProductInput,
   StorefrontProduct,
@@ -82,11 +84,21 @@ export const api = {
   removeFromCart: (productId: number) =>
     request<{ items: CartItem[] }>('DELETE', `/api/cart/${productId}`),
   getOrders: () => request<{ orders: Order[] }>('GET', '/api/orders'),
-  createOrder: (details: CheckoutDetails) =>
-    request<{ order: { code: string; status: string; total: number; message: string } }>(
+  createLiqpayCheckout: (details: CheckoutDetails) =>
+    request<{ order: { code: string; total: number }; checkout: LiqpayCheckout }>(
       'POST',
-      '/api/orders',
+      '/api/payments/liqpay/checkout',
       details,
+    ),
+  getLiqpayPayment: (code: string) =>
+    request<{ order: { code: string; total: number; paymentStatus: PaymentStatus } }>(
+      'GET',
+      `/api/payments/liqpay/orders/${encodeURIComponent(code)}`,
+    ),
+  cancelLiqpayPayment: (code: string) =>
+    request<{ order: { code: string; total: number; paymentStatus: PaymentStatus } }>(
+      'POST',
+      `/api/payments/liqpay/orders/${encodeURIComponent(code)}/cancel`,
     ),
   getProducts: (
     params: {

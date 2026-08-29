@@ -4,6 +4,12 @@ import { formatPrice } from '../../shared/lib/format'
 import { Icon } from '../../shared/ui/Icon'
 
 const price = formatPrice
+const paymentStatusLabel = {
+  pending: 'Очікуємо підтвердження LiqPay',
+  paid: 'Оплату підтверджено',
+  failed: 'Оплата не пройшла',
+  cancelled: 'Оплату скасовано',
+}
 
 export function Account({
   onNavigate,
@@ -172,7 +178,9 @@ export function Account({
               <div key={order.code}>
                 <span>№ {order.code}</span>
                 <b>{price(order.total)} ₴</b>
-                <small>Створено · очікує тестової оплати</small>
+                <small>
+                  Створено · {paymentStatusLabel[order.paymentStatus] ?? 'Статус оновлюється'}
+                </small>
               </div>
             ))}
           </div>

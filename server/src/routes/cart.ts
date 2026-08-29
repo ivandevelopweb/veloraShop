@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { authenticate, type AuthRequest } from '../auth.js'
-import { pool } from '../db.js'
+import { pool, withTransaction } from '../db.js'
 import { ApiError } from '../errors.js'
 import { asyncHandler } from '../http.js'
 import { requireCsrf } from '../security.js'
+import { assertNoPendingPayment, lockUserPaymentState } from '../payments.js'
 
 const cartRouter = Router()
 
@@ -52,22 +53,27 @@ cartRouter.post(
   asyncHandler(async (request, response) => {
     const userId = (await authenticate(request as AuthRequest)).userId
     const { productId } = productSchema.parse(request.body)
-    const exists = await pool.query<{ stock: number }>(
-      `SELECT stock
-       FROM products
-       WHERE id = $1 AND is_available = TRUE AND status = 'active' AND stock > 0`,
-      [productId],
-    )
-    if (!exists.rowCount) throw new ApiError(404, 'Товар недоступний')
-    await pool.query(
-      `INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, 1)
-       ON CONFLICT (user_id, product_id)
-       DO UPDATE SET quantity = LEAST(
-         cart_items.quantity + 1,
-         (SELECT stock FROM products WHERE products.id = EXCLUDED.product_id)
-       )`,
-      [userId, productId],
-    )
+    await withTransaction(async (client) => {
+      await lockUserPaymentState(client, userId)
+      await assertNoPendingPayment(client, userId)
+      const exists = await client.query<{ stock: number }>(
+        `SELECT stock
+         FROM products
+         WHERE id = $1 AND is_available = TRUE AND status = 'active' AND stock > 0
+         FOR UPDATE`,
+        [productId],
+      )
+      if (!exists.rowCount) throw new ApiError(404, 'Товар недоступний')
+      await client.query(
+        `INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, 1)
+         ON CONFLICT (user_id, product_id)
+         DO UPDATE SET quantity = LEAST(
+           cart_items.quantity + 1,
+           (SELECT stock FROM products WHERE products.id = EXCLUDED.product_id)
+         )`,
+        [userId, productId],
+      )
+    })
     await respondWithCart(response, userId)
   }),
 )
@@ -81,19 +87,23 @@ cartRouter.patch(
       productId: request.params.productId,
       quantity: request.body?.quantity,
     })
-    const result = await pool.query(
-      `UPDATE cart_items
-       SET quantity = LEAST($1, products.stock)
-       FROM products
-       WHERE cart_items.user_id = $2
-         AND cart_items.product_id = $3
-         AND products.id = cart_items.product_id
-         AND products.is_available = TRUE
-         AND products.status = 'active'
-         AND products.stock > 0`,
-      [quantity, userId, productId],
-    )
-    if (!result.rowCount) throw new ApiError(404, 'Товару немає в кошику')
+    await withTransaction(async (client) => {
+      await lockUserPaymentState(client, userId)
+      await assertNoPendingPayment(client, userId)
+      const result = await client.query(
+        `UPDATE cart_items
+         SET quantity = LEAST($1, products.stock)
+         FROM products
+         WHERE cart_items.user_id = $2
+           AND cart_items.product_id = $3
+           AND products.id = cart_items.product_id
+           AND products.is_available = TRUE
+           AND products.status = 'active'
+           AND products.stock > 0`,
+        [quantity, userId, productId],
+      )
+      if (!result.rowCount) throw new ApiError(404, 'Товару немає в кошику')
+    })
     await respondWithCart(response, userId)
   }),
 )
@@ -104,10 +114,14 @@ cartRouter.delete(
   asyncHandler(async (request, response) => {
     const userId = (await authenticate(request as AuthRequest)).userId
     const { productId } = productSchema.parse({ productId: request.params.productId })
-    await pool.query('DELETE FROM cart_items WHERE user_id = $1 AND product_id = $2', [
-      userId,
-      productId,
-    ])
+    await withTransaction(async (client) => {
+      await lockUserPaymentState(client, userId)
+      await assertNoPendingPayment(client, userId)
+      await client.query('DELETE FROM cart_items WHERE user_id = $1 AND product_id = $2', [
+        userId,
+        productId,
+      ])
+    })
     await respondWithCart(response, userId)
   }),
 )

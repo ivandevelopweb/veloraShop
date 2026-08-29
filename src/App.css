@@ -1153,7 +1153,7 @@ h1 i,
 .address-fields {
   margin-top: 17px;
 }
-.payment-stub {
+.payment-option {
   padding: 16px;
   display: flex;
   align-items: center;
@@ -1161,15 +1161,15 @@ h1 i,
   background: #f7f1e8;
   color: var(--gold-dark);
 }
-.payment-stub b,
-.payment-stub small {
+.payment-option b,
+.payment-option small {
   display: block;
 }
-.payment-stub b {
+.payment-option b {
   color: var(--ink);
   font-size: 12px;
 }
-.payment-stub small {
+.payment-option small {
   margin-top: 3px;
   color: var(--muted);
   font-size: 10px;
@@ -1237,6 +1237,28 @@ h1 i,
 }
 .confirmation .button-dark {
   margin-top: 25px;
+}
+.confirmation form + .text-link,
+.payment-result .text-link {
+  margin-top: 16px;
+}
+.payment-result > small {
+  margin-top: -6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.payment-mark-pending {
+  animation: payment-pulse 1.5s ease-in-out infinite;
+}
+.payment-mark-failed,
+.payment-mark-cancelled {
+  color: #9a625d;
+  background: #f4e7e3;
+}
+@keyframes payment-pulse {
+  50% {
+    transform: scale(1.04);
+  }
 }
 
 .account-page {

@@ -448,6 +448,22 @@
   background: #e6edf3;
   color: #52718c;
 }
+.payment-status {
+  margin-bottom: 3px;
+}
+.payment-pending {
+  background: #f6ecd5;
+  color: #86682b;
+}
+.payment-paid {
+  background: #e6eee4;
+  color: #456442;
+}
+.payment-failed,
+.payment-cancelled {
+  background: #efe8e4;
+  color: #85665d;
+}
 
 .admin-editor {
   display: grid;

@@ -9,14 +9,16 @@ import { hydrateCartItems } from './model/cart'
 import { type DisplayProduct } from './model/displayProduct'
 import { useCatalog } from './hooks/useCatalog'
 import { useToast } from './hooks/useToast'
-import { About, Account, Cart, Catalog, Checkout, Home, ProductView } from './pages'
+import { About, Account, Cart, Catalog, Checkout, Home, PaymentResult, ProductView } from './pages'
 
 const AdminApp = lazy(() => import('../admin/AdminApp'))
 
 export default function StorefrontApp() {
-  const [page, setPage] = useState(() =>
-    window.location.pathname.startsWith('/admin') ? 'admin' : 'home',
-  )
+  const [page, setPage] = useState(() => {
+    if (window.location.pathname.startsWith('/admin')) return 'admin'
+    if (window.location.pathname === '/payment/result') return 'payment-result'
+    return 'home'
+  })
   const [activeCategory, setActiveCategory] = useState('Усе')
   const [search, setSearch] = useState('')
   const [cartItems, setCartItems] = useState<CartItem[]>([])
@@ -180,9 +182,9 @@ export default function StorefrontApp() {
     }
   }
 
-  const createOrder = async (details) => {
+  const createLiqpayCheckout = async (details) => {
     try {
-      const response = await api.createOrder({
+      const response = await api.createLiqpayCheckout({
         ...details,
         firstName: String(details.firstName),
         lastName: String(details.lastName),
@@ -191,9 +193,8 @@ export default function StorefrontApp() {
         city: String(details.city),
         branch: String(details.branch),
       })
-      setCartItems([])
-      await Promise.all([syncOrders(), refreshCatalog()])
-      return response.order
+      await syncOrders()
+      return response
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401) {
         setUser(null)
@@ -283,7 +284,16 @@ export default function StorefrontApp() {
       )}
       {page === 'cart' && <Cart cart={cart} onChange={changeQuantity} onNavigate={navigate} />}
       {page === 'checkout' && (
-        <Checkout cart={cart} onNavigate={navigate} onComplete={createOrder} />
+        <Checkout cart={cart} onNavigate={navigate} onComplete={createLiqpayCheckout} />
+      )}
+      {page === 'payment-result' && (
+        <PaymentResult
+          loading={sessionLoading}
+          onNavigate={navigate}
+          onSettled={async () => {
+            await Promise.all([syncCart(), syncOrders(), refreshCatalog()])
+          }}
+        />
       )}
       {page === 'account' && (
         <Account
