@@ -5,7 +5,7 @@ import { config } from '../config.js'
 import { newId, pool, withTransaction } from '../db.js'
 import { ApiError } from '../errors.js'
 import { asyncHandler } from '../http.js'
-import { createLiqpayCheckout, sameLiqpaySignature } from '../liqpay.js'
+import { createLiqpayCheckout, sameLiqpayCallbackSignature } from '../liqpay.js'
 import {
   createOrderCode,
   getPendingPayment,
@@ -234,7 +234,7 @@ paymentsRouter.post(
     }
     const liqpay = getLiqpayConfig()
     const envelope = callbackEnvelopeSchema.parse(request.body)
-    if (!sameLiqpaySignature(envelope.data, envelope.signature, liqpay.privateKey)) {
+    if (!sameLiqpayCallbackSignature(envelope.data, envelope.signature, liqpay.privateKey)) {
       throw new ApiError(400, 'Некоректний callback оплати')
     }
     const decoded = Buffer.from(envelope.data, 'base64').toString('utf8')

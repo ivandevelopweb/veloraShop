@@ -14,14 +14,32 @@ export type LiqpayCheckoutPayload = {
   sandbox?: 1
 }
 
-export function signLiqpayData(data: string, privateKey: string) {
-  return createHash('sha1').update(`${privateKey}${data}${privateKey}`, 'utf8').digest('base64')
+function sign(data: string, privateKey: string, algorithm: 'sha1' | 'sha3-256') {
+  return createHash(algorithm).update(`${privateKey}${data}${privateKey}`, 'utf8').digest('base64')
 }
 
-export function sameLiqpaySignature(data: string, signature: string, privateKey: string) {
-  const expected = Buffer.from(signLiqpayData(data, privateKey))
+export function signLiqpayData(data: string, privateKey: string) {
+  return sign(data, privateKey, 'sha1')
+}
+
+function sameSignature(expectedSignature: string, signature: string) {
+  const expected = Buffer.from(expectedSignature)
   const received = Buffer.from(signature)
   return expected.length === received.length && timingSafeEqual(expected, received)
+}
+
+export function sameLiqpayCheckoutSignature(data: string, signature: string, privateKey: string) {
+  return sameSignature(signLiqpayData(data, privateKey), signature)
+}
+
+export function sameLiqpayCallbackSignature(data: string, signature: string, privateKey: string) {
+  // LiqPay's current callback prose specifies SHA3-256, while its executable
+  // examples and Checkout signature use SHA-1. Both variants still require the
+  // configured private key, so accepting either preserves verification and lets
+  // us safely interoperate with both provider implementations.
+  const matchesSha1 = sameSignature(sign(data, privateKey, 'sha1'), signature)
+  const matchesSha3 = sameSignature(sign(data, privateKey, 'sha3-256'), signature)
+  return matchesSha1 || matchesSha3
 }
 
 export function createLiqpayCheckout(payload: LiqpayCheckoutPayload, privateKey: string) {
