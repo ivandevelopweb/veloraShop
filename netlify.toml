@@ -4,6 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # Vite deliberately exposes this public API origin in the browser bundle.
+  # Keep Netlify's secret scan enabled for every other configured variable.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_API_ORIGIN"
 
 [[redirects]]
   from = "/*"
