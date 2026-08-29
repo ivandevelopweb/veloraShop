@@ -57,7 +57,7 @@ LiqPay POST data + signature
 
 The callback endpoint is public and has no CSRF requirement because it does not use a browser session. It accepts only URL-encoded `data` and `signature`; it never logs either value. LiqPay's executable examples use `base64(SHA1(private_key + data + private_key))`, while its current callback prose specifies SHA3-256. The endpoint compares both documented provider variants in constant time; either still requires the configured private key. It is not an HMAC construction.
 
-Only `success` transitions an order to `paid`. `error` and `failure` become `failed`; `reversed` becomes `cancelled`; non-final states remain `pending`. Repeated callbacks lock the same order and perform no second stock decrement, cart clear or state event.
+Only `success` (and LiqPay's documented `sandbox` status when Sandbox mode is explicitly enabled) transitions an order to `paid`. `error` and `failure` become `failed`; `reversed` becomes `cancelled`; non-final states remain `pending`. Repeated callbacks lock the same order and perform no second stock decrement, cart clear or state event.
 
 On a first successful callback the callback transaction locks product rows, verifies availability and stock again, decrements each quantity and sets `paid_at`. It removes only cart items that still exactly match the paid order, and leaves the cart intact if it belongs to a newer pending payment. A stock conflict is retained as an explicit server-side operational error rather than falsely reporting payment success; it is not silently converted into fulfilment. In normal Sandbox testing, each checkout starts from valid stock.
 

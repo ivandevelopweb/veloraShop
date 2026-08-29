@@ -5,7 +5,11 @@ import { config } from '../config.js'
 import { newId, pool, withTransaction } from '../db.js'
 import { ApiError } from '../errors.js'
 import { asyncHandler } from '../http.js'
-import { createLiqpayCheckout, sameLiqpayCallbackSignature } from '../liqpay.js'
+import {
+  createLiqpayCheckout,
+  mapLiqpayPaymentStatus,
+  sameLiqpayCallbackSignature,
+} from '../liqpay.js'
 import {
   createOrderCode,
   getPendingPayment,
@@ -249,16 +253,9 @@ paymentsRouter.post(
       throw new ApiError(400, 'Некоректний callback оплати')
     }
 
-    const mappedStatus: PaymentStatus | null =
-      callback.status === 'success'
-        ? 'paid'
-        : callback.status === 'reversed'
-          ? 'cancelled'
-          : callback.status === 'error' || callback.status === 'failure'
-            ? 'failed'
-            : null
+    const mappedStatus: PaymentStatus = mapLiqpayPaymentStatus(callback.status, liqpay.sandbox)
 
-    if (mappedStatus) {
+    if (mappedStatus !== 'pending') {
       await withTransaction(async (client) => {
         const owner = await client.query<{ userId: string }>(
           'SELECT user_id AS "userId" FROM orders WHERE payment_order_id = $1',
