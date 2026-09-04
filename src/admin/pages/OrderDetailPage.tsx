@@ -46,7 +46,7 @@ export function OrderDetail({
     )[order.status]
     return transitions.filter(
       (next) =>
-        (next === 'cancelled' && order.paymentStatus !== 'pending') ||
+        (next === 'cancelled' && order.paymentStatus === 'paid') ||
         (next !== 'cancelled' && order.paymentStatus === 'paid'),
     )
   }, [order])

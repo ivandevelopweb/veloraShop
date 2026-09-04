@@ -1,9 +1,8 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import {
-  checkAuthRateLimit,
   clearAuthRateLimit,
-  recordFailedAuthAttempt,
+  reserveLoginAttempt,
   reserveRegistrationAttempt,
 } from '../auth-rate-limit.js'
 import {
@@ -23,24 +22,19 @@ import { clearSessionCookie, requireCsrf, setSessionCookie } from '../security.j
 
 const authRouter = Router()
 
-const credentialsSchema = z.object({
-  email: z.string().trim().toLowerCase().email().max(254),
-  password: z
-    .string()
-    .min(12, 'Пароль має містити щонайменше 12 символів')
-    .max(72)
-    .regex(/[a-zA-Zа-яА-ЯіІїЇєЄ]/, 'Пароль має містити літеру')
-    .regex(/\d/, 'Пароль має містити цифру'),
-})
+const credentialsSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().email().max(254),
+    password: z
+      .string()
+      .min(12, 'Пароль має містити щонайменше 12 символів')
+      .max(72)
+      .regex(/[a-zA-Zа-яА-ЯіІїЇєЄ]/, 'Пароль має містити літеру')
+      .regex(/\d/, 'Пароль має містити цифру'),
+  })
+  .strict()
 
-const registrationSchema = credentialsSchema.extend({
-  name: z.string().trim().min(2).max(80),
-})
-
-const authLimiter = asyncHandler(async (request, _response, next) => {
-  await checkAuthRateLimit(request)
-  next()
-})
+const registrationSchema = credentialsSchema.extend({ name: z.string().trim().min(2).max(80) }).strict()
 
 async function replyWithSession(response: Parameters<typeof setSessionCookie>[0], userId: string) {
   const session = await createSession(userId)
@@ -52,7 +46,6 @@ async function replyWithSession(response: Parameters<typeof setSessionCookie>[0]
 
 authRouter.post(
   '/register',
-  authLimiter,
   requireCsrf,
   asyncHandler(async (request, response) => {
     const payload = registrationSchema.parse(request.body)
@@ -60,15 +53,10 @@ authRouter.post(
     const passwordHash = await hashPassword(payload.password)
     const userId = newId()
 
-    try {
-      await pool.query(
-        'INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)',
-        [userId, payload.name, payload.email, passwordHash],
-      )
-    } catch (error) {
-      await recordFailedAuthAttempt(request)
-      throw error
-    }
+    await pool.query(
+      'INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)',
+      [userId, payload.name, payload.email, passwordHash],
+    )
     await clearAuthRateLimit(request)
     await replyWithSession(response, userId)
   }),
@@ -76,10 +64,10 @@ authRouter.post(
 
 authRouter.post(
   '/login',
-  authLimiter,
   requireCsrf,
   asyncHandler(async (request, response) => {
     const payload = credentialsSchema.parse(request.body)
+    await reserveLoginAttempt(request)
     const { rows } = await pool.query<{ id: string; passwordHash: string }>(
       'SELECT id, password_hash AS "passwordHash" FROM users WHERE email = $1',
       [payload.email],
@@ -90,7 +78,6 @@ authRouter.post(
       : false
 
     if (!account || !passwordMatches) {
-      await recordFailedAuthAttempt(request)
       throw new ApiError(401, 'Неправильний email або пароль')
     }
 

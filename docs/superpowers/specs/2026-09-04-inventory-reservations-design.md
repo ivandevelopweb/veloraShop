@@ -37,13 +37,14 @@ Payment/order states:
     pending -> paid
     pending -> failed
     pending -> cancelled
-    pending -> expired
+    pending -> expired (legacy pre-reservation sandbox migration only)
     pending -> reconciliation_required
+    reconciliation_required -> paid|failed|cancelled (only while every reservation is still active)
     failed -> reconciliation_required (only for a later valid paid provider event)
     cancelled -> reconciliation_required (only for a later valid paid provider event)
     expired -> reconciliation_required
 
-Paid and reconciliation_required are terminal for automated payment processing. Failed, cancelled, and expired are terminal unless a later cryptographically valid authoritative paid provider event proves that the released reservation must be reconciled. That exceptional event moves the order to reconciliation_required rather than to paid. A separate manual reconciliation/refund workflow is required for reconciliation_required and is intentionally not hidden as a normal paid transition.
+Paid is terminal for ordinary replay/failure/cancellation events. A cryptographically valid event carrying a conflicting provider payment ID is exceptional evidence of a possible duplicate charge and moves the order to reconciliation_required rather than silently replacing payment identity. A reconciliation state with active reservations is retried by the worker and may safely reach a final provider outcome; a reconciliation state whose reservation was released is manual/refund-only. Failed, cancelled, and expired are terminal unless a later cryptographically valid authoritative paid provider event proves that the released reservation must be reconciled. That exceptional event moves the order to reconciliation_required rather than to paid.
 
 Reservation states:
 
@@ -58,13 +59,14 @@ Checkout runs in one PostgreSQL transaction:
 
 1. lock the authenticated user;
 2. reject an existing pending payment after checking its reservation state;
-3. lock cart rows;
-4. lock all requested product rows in increasing product ID order;
-5. require active/available catalog state and stock - reserved_stock >= quantity;
-6. insert order, immutable order_items, and active inventory_reservations;
-7. increment products.reserved_stock;
-8. commit;
-9. only after commit, create the sandbox LiqPay checkout data.
+3. insert a transaction-local pending order shell (total is zero only until trusted rows are locked);
+4. lock cart rows;
+5. lock all requested product rows in increasing product ID order;
+6. require active/available catalog state and stock - reserved_stock >= quantity;
+7. write the server-calculated total, immutable order_items, and active inventory_reservations;
+8. increment products.reserved_stock;
+9. commit;
+10. only after commit, create the sandbox LiqPay checkout data.
 
 The signed checkout contains an expired_date equal to the reservation’s payment deadline. The client never receives checkout data before the reservation transaction commits.
 
@@ -85,7 +87,7 @@ An expiry worker finds pending orders whose reservation_expires_at has passed. F
 
 If a cryptographically valid paid callback arrives after a reservation was already released/expired, the service records the provider payment ID/event and moves the order to reconciliation_required. It never silently marks it paid, never re-reserves stock implicitly, and never discards the provider event.
 
-Expiry worker operations are idempotent through order row locks plus conditional reservation state changes. The worker does not hold PostgreSQL locks across the network request to LiqPay.
+Expiry worker operations are idempotent through user/order row locks plus conditional reservation state changes. The worker does not hold PostgreSQL locks across the network request to LiqPay.
 
 ## Catalog lifecycle
 

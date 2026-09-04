@@ -49,6 +49,8 @@ const rawConfig = z
       (value) => (value === '' ? undefined : value),
       z.string().url().max(510).optional(),
     ),
+    PAYMENT_RESERVATION_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
+    PAYMENT_RECONCILIATION_GRACE_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
   })
   .refine(
     (value) => Boolean(value.ADMIN_EMAIL) === Boolean(value.ADMIN_PASSWORD),
@@ -154,4 +156,6 @@ export const config = {
             'https://velora-api-cg44.onrender.com/api/payments/liqpay/callback',
         }
       : undefined,
+  paymentReservationMinutes: rawConfig.PAYMENT_RESERVATION_MINUTES,
+  paymentReconciliationGraceMinutes: rawConfig.PAYMENT_RECONCILIATION_GRACE_MINUTES,
 }

@@ -31,6 +31,8 @@ export const paymentStatusLabel: Record<AdminOrder['paymentStatus'], string> = {
   paid: 'Оплачено',
   failed: 'Відхилено',
   cancelled: 'Скасовано',
+  expired: 'Строк оплати минув',
+  reconciliation_required: 'Потрібна звірка',
 }
 
 export const productStatusLabel: Record<AdminProduct['status'], string> = {

@@ -9,6 +9,8 @@ const paymentStatusLabel = {
   paid: 'Оплату підтверджено',
   failed: 'Оплата не пройшла',
   cancelled: 'Оплату скасовано',
+  expired: 'Строк оплати минув',
+  reconciliation_required: 'Потрібна звірка платежу',
 }
 
 export function Account({

@@ -5,6 +5,7 @@ import { requireAdmin, type AuthRequest } from '../auth.js'
 import { newId, pool, withTransaction } from '../db.js'
 import { ApiError } from '../errors.js'
 import { asyncHandler } from '../http.js'
+import { lockProductsById, type PaymentStatus } from '../payments.js'
 import {
   deleteProductImage,
   productImageUpload,
@@ -84,6 +85,7 @@ const adminProductSelect = `
     products.price_uah AS "priceUah",
     products.old_price_uah AS "oldPriceUah",
     products.stock,
+    products.reserved_stock AS "reservedStock",
     products.status,
     products.is_available AS "isAvailable",
     products.rating,
@@ -123,6 +125,7 @@ type AdminProduct = {
   priceUah: number
   oldPriceUah: number | null
   stock: number
+  reservedStock: number
   status: (typeof productStatuses)[number]
   isAvailable: boolean
   rating: string | number
@@ -157,6 +160,24 @@ async function getAdminProduct(id: number, client?: PoolClient) {
   const product = rows[0]
   if (!product) throw new ApiError(404, 'Товар не знайдено')
   return normalizeAdminProduct(product)
+}
+
+/**
+ * Global inventory lock order is documented in payments.ts.  Administrative
+ * product mutations only acquire a product lock, while order operations first
+ * lock the order and then products in ascending ID order.
+ */
+async function lockAdminProduct(client: PoolClient, id: number) {
+  const result = await client.query<{ id: number; reservedStock: number }>(
+    `SELECT id, reserved_stock AS "reservedStock"
+     FROM products
+     WHERE id = $1
+     FOR UPDATE`,
+    [id],
+  )
+  const product = result.rows[0]
+  if (!product) throw new ApiError(404, 'Товар не знайдено')
+  return product
 }
 
 async function ensureActiveCategory(client: PoolClient, categoryId: string | null) {
@@ -404,7 +425,14 @@ adminRouter.patch(
 
     const auth = (request as AuthRequest).auth!
     const product = await withTransaction(async (client) => {
+      const locked = await lockAdminProduct(client, id)
       const current = await getAdminProduct(id, client)
+      if (payload.stock !== undefined && payload.stock < locked.reservedStock) {
+        throw new ApiError(
+          409,
+          'Фізичний залишок не може бути меншим за вже зарезервовану кількість',
+        )
+      }
       if (payload.categoryId !== undefined) await ensureActiveCategory(client, payload.categoryId)
       const nextPrice = payload.priceUah ?? current.priceUah
       const nextOldPrice =
@@ -438,16 +466,20 @@ adminRouter.delete(
   asyncHandler(async (request, response) => {
     const { id } = idSchema.parse(request.params)
     const auth = (request as AuthRequest).auth!
-    const images = await withTransaction(async (client) => {
+    await withTransaction(async (client) => {
+      await lockAdminProduct(client, id)
       const product = await getAdminProduct(id, client)
-      await client.query('DELETE FROM cart_items WHERE product_id = $1', [id])
-      await client.query('DELETE FROM products WHERE id = $1', [id])
-      await writeAudit(client, auth.userId, 'product.deleted', 'product', String(id), {
+      await client.query(
+        `UPDATE products
+         SET status = 'archived', is_available = FALSE, updated_at = NOW()
+         WHERE id = $1`,
+        [id],
+      )
+      await writeAudit(client, auth.userId, 'product.archived', 'product', String(id), {
         name: product.name,
+        reason: 'normal_admin_delete_is_soft_archive',
       })
-      return product.images
     })
-    await destroyCloudinaryImages(images)
     response.status(204).end()
   }),
 )
@@ -796,7 +828,7 @@ adminRouter.get(
       id: string
       code: string
       status: (typeof orderStatuses)[number]
-      paymentStatus: 'pending' | 'paid' | 'failed' | 'cancelled'
+      paymentStatus: PaymentStatus
       paymentProvider: string | null
       providerPaymentId: string | null
       total: number
@@ -879,7 +911,7 @@ adminRouter.patch(
       const currentResult = await client.query<{
         id: string
         status: (typeof orderStatuses)[number]
-        paymentStatus: 'pending' | 'paid' | 'failed' | 'cancelled'
+        paymentStatus: PaymentStatus
       }>(
         `SELECT id, status, payment_status AS "paymentStatus"
          FROM orders
@@ -895,14 +927,21 @@ adminRouter.patch(
       if (status !== 'cancelled' && current.paymentStatus !== 'paid') {
         throw new ApiError(409, 'Спершу дочекайтеся підтвердження оплати LiqPay')
       }
-      if (status === 'cancelled' && current.paymentStatus === 'pending') {
-        throw new ApiError(409, 'Незавершену оплату може скасувати лише покупець на сторінці оплати')
+      if (status === 'cancelled' && current.paymentStatus !== 'paid') {
+        throw new ApiError(409, 'Скасувати через адміністратора можна лише оплачене замовлення')
       }
 
       if (status === 'cancelled' && current.paymentStatus === 'paid') {
         const { rows: items } = await client.query<{ productId: number; quantity: number }>(
-          'SELECT product_id AS "productId", quantity FROM order_items WHERE order_id = $1',
+          `SELECT product_id AS "productId", quantity
+           FROM order_items
+           WHERE order_id = $1
+           ORDER BY product_id ASC`,
           [current.id],
+        )
+        await lockProductsById(
+          client,
+          items.map((item) => item.productId),
         )
         for (const item of items) {
           await client.query(

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Request } from 'express'
-import { pool } from './db.js'
+import type { PoolClient } from 'pg'
+import { pool, withTransaction } from './db.js'
 import { ApiError } from './errors.js'
 
 const windowSeconds = 15 * 60
@@ -21,52 +22,19 @@ function requestKeys(request: Request) {
   }
 }
 
-export async function checkAuthRateLimit(request: Request) {
-  const keys = requestKeys(request)
-  const { rows } = await pool.query<{ attemptCount: number }>(
-    `SELECT MAX(attempt_count)::int AS "attemptCount"
-     FROM auth_rate_limits
-     WHERE key_hash = ANY($1::char(64)[])
-       AND window_started_at > NOW() - ($2::int * INTERVAL '1 second')`,
-    [[keys.ip, keys.account].filter(Boolean), windowSeconds],
-  )
-  if ((rows[0]?.attemptCount ?? 0) >= maximumFailures) {
-    throw new ApiError(429, 'Забагато спроб. Спробуйте знову трохи пізніше.')
-  }
-}
-
-export async function recordFailedAuthAttempt(request: Request) {
-  const keys = requestKeys(request)
-  for (const key of [keys.ip, keys.account].filter(Boolean)) {
-    await pool.query(
-      `INSERT INTO auth_rate_limits (key_hash, window_started_at, attempt_count)
-       VALUES ($1, NOW(), 1)
-       ON CONFLICT (key_hash)
-       DO UPDATE SET
-         attempt_count = CASE
-           WHEN auth_rate_limits.window_started_at <= NOW() - ($2::int * INTERVAL '1 second')
-             THEN 1
-           ELSE auth_rate_limits.attempt_count + 1
-         END,
-         window_started_at = CASE
-           WHEN auth_rate_limits.window_started_at <= NOW() - ($2::int * INTERVAL '1 second')
-             THEN NOW()
-           ELSE auth_rate_limits.window_started_at
-         END`,
-      [key, windowSeconds],
-    )
-  }
-}
-
-export async function clearAuthRateLimit(request: Request) {
-  const { account } = requestKeys(request)
-  if (account) await pool.query('DELETE FROM auth_rate_limits WHERE key_hash = $1', [account])
-}
-
-export async function reserveRegistrationAttempt(request: Request) {
-  const { ip } = requestKeys(request)
-  const registrationKey = createHash('sha256').update(`registration:${ip}`).digest('hex')
-  const result = await pool.query(
+/**
+ * Atomically consumes one quota slot.  The conditional UPSERT is deliberately
+ * the check and increment in one statement: parallel login requests cannot all
+ * observe the same pre-increment counter and proceed.
+ */
+async function reserveQuota(
+  client: PoolClient,
+  key: string,
+  window: number,
+  maximum: number,
+  message: string,
+) {
+  const result = await client.query(
     `INSERT INTO auth_rate_limits (key_hash, window_started_at, attempt_count)
      VALUES ($1, NOW(), 1)
      ON CONFLICT (key_hash)
@@ -84,11 +52,42 @@ export async function reserveRegistrationAttempt(request: Request) {
      WHERE auth_rate_limits.window_started_at <= NOW() - ($2::int * INTERVAL '1 second')
         OR auth_rate_limits.attempt_count < $3
      RETURNING attempt_count`,
-    [registrationKey, registrationWindowSeconds, maximumRegistrations],
+    [key, window, maximum],
   )
+  if (!result.rowCount) throw new ApiError(429, message)
+}
 
-  // The conditional upsert makes the quota reservation atomic across concurrent requests.
-  if (!result.rowCount) {
-    throw new ApiError(429, 'Забагато реєстрацій. Спробуйте знову трохи пізніше.')
-  }
+export async function reserveLoginAttempt(request: Request) {
+  const keys = requestKeys(request)
+  const limits = [keys.ip, keys.account].filter((key): key is string => Boolean(key)).sort()
+  await withTransaction(async (client) => {
+    for (const key of limits) {
+      await reserveQuota(
+        client,
+        key,
+        windowSeconds,
+        maximumFailures,
+        'Забагато спроб. Спробуйте знову трохи пізніше.',
+      )
+    }
+  })
+}
+
+export async function clearAuthRateLimit(request: Request) {
+  const { account } = requestKeys(request)
+  if (account) await pool.query('DELETE FROM auth_rate_limits WHERE key_hash = $1', [account])
+}
+
+export async function reserveRegistrationAttempt(request: Request) {
+  const { ip } = requestKeys(request)
+  const registrationKey = createHash('sha256').update(`registration:${ip}`).digest('hex')
+  await withTransaction((client) =>
+    reserveQuota(
+      client,
+      registrationKey,
+      registrationWindowSeconds,
+      maximumRegistrations,
+      'Забагато реєстрацій. Спробуйте знову трохи пізніше.',
+    ),
+  )
 }

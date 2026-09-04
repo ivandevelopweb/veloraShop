@@ -57,7 +57,7 @@ const productSelect = `
     products.rating,
     products.review_count AS "reviewCount",
     products.badge,
-    products.stock,
+    products.stock - products.reserved_stock AS stock,
     products.created_at AS "createdAt",
     categories.name AS category,
     categories.slug AS "categorySlug",
@@ -114,7 +114,7 @@ productsRouter.get(
     const conditions = [
       "products.status = 'active'",
       'products.is_available = TRUE',
-      'products.stock > 0',
+      'products.stock > products.reserved_stock',
       '(categories.is_archived = FALSE OR categories.id IS NULL)',
     ]
     const values: Array<string | number> = []
@@ -174,7 +174,7 @@ productsRouter.get(
        WHERE products.slug = $1
          AND products.status = 'active'
          AND products.is_available = TRUE
-         AND products.stock > 0
+          AND products.stock > products.reserved_stock
          AND (categories.is_archived = FALSE OR categories.id IS NULL)`,
       [slug],
     )

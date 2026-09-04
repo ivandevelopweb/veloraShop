@@ -1,5 +1,5 @@
 {
-  "name": "shopint",
+  "name": "velora",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -20,6 +20,7 @@
     "start:render": "npm run migrate:up && node server/dist/seed.js && npm run start:server",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "tsx server/test/run.mts",
     "preview": "vite preview"
   },
   "dependencies": {

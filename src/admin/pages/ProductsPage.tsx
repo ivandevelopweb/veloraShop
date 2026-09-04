@@ -48,13 +48,13 @@ export function Products({ onNavigate }: { onNavigate: (route: RouteState) => vo
 
   const pageCount = Math.max(1, Math.ceil(total / 12))
   const remove = async (product: AdminProduct) => {
-    if (!window.confirm(`Остаточно видалити «${product.name}»? Цю дію не можна скасувати.`)) return
+    if (!window.confirm(`Архівувати «${product.name}»? Нові покупці більше не бачитимуть цей товар.`)) return
     try {
       await api.admin.deleteProduct(product.id)
       setProducts((current) => current.filter((item) => item.id !== product.id))
       setTotal((current) => current - 1)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Не вдалося видалити товар')
+      setError(requestError instanceof Error ? requestError.message : 'Не вдалося архівувати товар')
     }
   }
 
@@ -161,7 +161,7 @@ export function Products({ onNavigate }: { onNavigate: (route: RouteState) => vo
                             Редагувати
                           </button>
                           <button className="danger" onClick={() => void remove(product)}>
-                            Видалити
+                            Архівувати
                           </button>
                         </div>
                       </td>

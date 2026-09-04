@@ -57,6 +57,7 @@ export type AdminProduct = {
   priceUah: number
   oldPriceUah: number | null
   stock: number
+  reservedStock: number
   status: 'draft' | 'active' | 'archived'
   isAvailable: boolean
   rating: number
@@ -129,7 +130,13 @@ export type Order = {
   deliveryMethod: string
 }
 
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled'
+export type PaymentStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'cancelled'
+  | 'expired'
+  | 'reconciliation_required'
 
 export type LiqpayCheckout = {
   data: string

@@ -20,7 +20,9 @@ categoriesRouter.get(
          categories.slug,
          categories.description,
          COUNT(products.id) FILTER (
-           WHERE products.status = 'active' AND products.is_available = TRUE AND products.stock > 0
+           WHERE products.status = 'active'
+             AND products.is_available = TRUE
+             AND products.stock > products.reserved_stock
          )::text AS "productCount"
        FROM categories
        LEFT JOIN products ON products.category_id = categories.id

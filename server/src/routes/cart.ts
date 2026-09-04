@@ -14,7 +14,7 @@ const productSchema = z.object({
 })
 
 const quantitySchema = productSchema.extend({
-  quantity: z.coerce.number().int().min(1),
+  quantity: z.coerce.number().int().min(1).max(100_000),
 })
 
 async function respondWithCart(response: import('express').Response, userId: string) {
@@ -26,13 +26,13 @@ async function respondWithCart(response: import('express').Response, userId: str
     stock: number
   }>(
     `SELECT cart_items.product_id AS "productId", cart_items.quantity, products.name,
-            products.price_uah AS price, products.stock
+            products.price_uah AS price, products.stock - products.reserved_stock AS stock
      FROM cart_items
      JOIN products ON products.id = cart_items.product_id
      WHERE cart_items.user_id = $1
        AND products.is_available = TRUE
        AND products.status = 'active'
-       AND products.stock > 0
+        AND products.stock > products.reserved_stock
      ORDER BY cart_items.product_id`,
     [userId],
   )
@@ -56,10 +56,13 @@ cartRouter.post(
     await withTransaction(async (client) => {
       await lockUserPaymentState(client, userId)
       await assertNoPendingPayment(client, userId)
-      const exists = await client.query<{ stock: number }>(
-        `SELECT stock
+      const exists = await client.query<{ stock: number; reservedStock: number }>(
+        `SELECT stock, reserved_stock AS "reservedStock"
          FROM products
-         WHERE id = $1 AND is_available = TRUE AND status = 'active' AND stock > 0
+         WHERE id = $1
+           AND is_available = TRUE
+           AND status = 'active'
+           AND stock > reserved_stock
          FOR UPDATE`,
         [productId],
       )
@@ -69,7 +72,11 @@ cartRouter.post(
          ON CONFLICT (user_id, product_id)
          DO UPDATE SET quantity = LEAST(
            cart_items.quantity + 1,
-           (SELECT stock FROM products WHERE products.id = EXCLUDED.product_id)
+            (
+              SELECT stock - reserved_stock
+              FROM products
+              WHERE products.id = EXCLUDED.product_id
+            )
          )`,
         [userId, productId],
       )
@@ -92,14 +99,14 @@ cartRouter.patch(
       await assertNoPendingPayment(client, userId)
       const result = await client.query(
         `UPDATE cart_items
-         SET quantity = LEAST($1, products.stock)
+         SET quantity = LEAST($1, products.stock - products.reserved_stock)
          FROM products
          WHERE cart_items.user_id = $2
            AND cart_items.product_id = $3
            AND products.id = cart_items.product_id
            AND products.is_available = TRUE
            AND products.status = 'active'
-           AND products.stock > 0`,
+            AND products.stock > products.reserved_stock`,
         [quantity, userId, productId],
       )
       if (!result.rowCount) throw new ApiError(404, 'Товару немає в кошику')
