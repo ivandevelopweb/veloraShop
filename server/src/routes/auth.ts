@@ -4,6 +4,7 @@ import {
   checkAuthRateLimit,
   clearAuthRateLimit,
   recordFailedAuthAttempt,
+  reserveRegistrationAttempt,
 } from '../auth-rate-limit.js'
 import {
   createSession,
@@ -55,6 +56,7 @@ authRouter.post(
   requireCsrf,
   asyncHandler(async (request, response) => {
     const payload = registrationSchema.parse(request.body)
+    await reserveRegistrationAttempt(request)
     const passwordHash = await hashPassword(payload.password)
     const userId = newId()
 

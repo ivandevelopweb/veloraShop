@@ -89,3 +89,53 @@ One current configuration error prevents the backend from starting: `ADMIN_PASSW
 - TypeScript server build, Vite production build and lint pass.
 - `npm audit --omit=dev` reports zero production dependency vulnerabilities.
 - A startup reproduction confirmed the backend stops because the configured `ADMIN_PASSWORD` is shorter than 12 characters.
+
+---
+
+# ZAP report triage
+
+Reviewed: 2026-09-04
+
+## Scope and executive summary
+
+Only the six alerts reported for `https://velora-api-cg44.onrender.com` were assessed. Findings for LiqPay, Google Pay, PrivatBank, analytics, CDNs and other third-party hosts were excluded.
+
+No ZAP alert in this scope is a confirmed vulnerability. The two cookie alerts describe the deliberate, signed double-submit CSRF design required by the separately hosted Netlify storefront and Render API. The other four alerts are informational classifications or a parser false positive.
+
+One separate low-severity abuse risk was found during the auth review: a client could create many valid, unique accounts because only failed authentication attempts incremented a rate-limit counter. It is remediated below without changing sessions, authorisation or checkout logic.
+
+## ZAP alert assessment
+
+| ZAP alert | Assessment and severity | Evidence and cause | Changed file / resolution |
+| --- | --- | --- | --- |
+| Cookie No HttpOnly Flag (`GET /api/auth/csrf`) | False positive; no vulnerability. | `server/src/security.ts:22-31` deliberately makes only the CSRF double-submit value readable by the storefront. It is an HMAC-signed, short-lived anti-CSRF value, not an authenticated session. The opaque session cookie is separately set `httpOnly: true` at `server/src/security.ts:50-56`. | No change required. |
+| Cookie with SameSite Attribute None (`GET /api/auth/csrf`) | False positive; no vulnerability. | The storefront and API are on different sites, so production needs `SameSite=None; Secure` (`server/src/config.ts:129`, `server/src/security.ts:6-10`). State-changing routes require the matching signed CSRF cookie and custom header (`server/src/security.ts:33-47`), while CORS accepts only exact configured origins (`server/src/app.ts:39-47`). | No change required. |
+| Timestamp Disclosure - Unix (`GET /api/products?pageSize=100`) | False positive; informational only. | ZAP matched `1549465220` inside a public Unsplash image identifier returned in product data. These seed URLs are constructed in `server/src/catalog.ts:656`; the value is neither a session, token nor internal server timestamp. | No change required. |
+| Authentication Request Identified (`POST /api/auth/login`) | Informational scanner classification; no vulnerability. | It correctly identifies the login route. Credentials are schema-validated and login requires CSRF (`server/src/routes/auth.ts:77-100`); failed attempts are rate-limited (`server/src/auth-rate-limit.ts:22-34`). | No change required. |
+| Session Management Response Identified (`GET /api/auth/csrf`) | Informational scanner classification; no vulnerability. | It correctly identifies the CSRF bootstrap response (`server/src/app.ts:59-62`). Authenticated requests use a server-stored opaque random token and an `HttpOnly` cookie, not a client-stored bearer token (`server/src/auth.ts:16-42`, `server/src/security.ts:50-56`). | No change required. |
+| User Agent Fuzzer (`POST /api/auth/logout`) | Informational active-scan record; no vulnerability. | No security decision depends on `User-Agent`. Logout is protected by both CSRF and authentication (`server/src/routes/auth.ts:112-121`), so a forged or modified user agent cannot terminate another user's session. | No change required. |
+
+## Remediated non-ZAP finding
+
+### ZAP-EXT-01 — Valid registration throughput was not rate-limited
+
+- Severity: Low
+- Location: `server/src/routes/auth.ts:53-74`, formerly relying on failed-auth counters only.
+- Impact: an automated client could submit many valid, unique registrations, consuming bcrypt and database capacity.
+- Fix: `reserveRegistrationAttempt()` in `server/src/auth-rate-limit.ts:66-93` atomically reserves one of five registrations per source IP per hour. The reservation runs only after CSRF and schema validation (`server/src/routes/auth.ts:56-59`), so cross-site requests cannot exhaust the quota. It reuses the existing hashed-counter table and does not store source addresses in plaintext.
+
+## Focused control review
+
+- Authorisation: customer resource queries filter by the authenticated `user_id`; admin routes use a server-side `requireAdmin` middleware (`server/src/routes/admin.ts:71-75`).
+- CORS: credentialed CORS is exact-origin allowlisted (`server/src/app.ts:39-47`), and production rejects missing or non-HTTPS origin configuration (`server/src/config.ts:96-113`).
+- Cookies and tokens: production uses `Secure`, `SameSite=None`, `__Host-` names and an `HttpOnly` opaque session cookie; no session identifiers are stored in browser storage (`server/src/security.ts:6-10`, `server/src/security.ts:50-59`).
+- Error disclosure: the final error handler returns generic 500 messages and logs only the internal message server-side (`server/src/errors.ts:18-40`).
+- Sensitive data: API responses receive `Cache-Control: no-store` centrally (`server/src/app.ts:51-55`); all SQL request values are parameterized and validated at route boundaries.
+
+## Verification
+
+- `npm run build:server` — passed.
+- `npm run build` — passed.
+- `npm run lint` — passed.
+- Desktop and 390 × 844 mobile checks of the production build — passed for the static UI shell. The local API was unavailable, so dynamic catalogue/auth flows were not exercised locally.
+- `npm audit --omit=dev` — reports three moderate, transitive `qs` advisories through Express, with no fix available in npm for the current dependency tree. No automatic dependency upgrade was applied.
