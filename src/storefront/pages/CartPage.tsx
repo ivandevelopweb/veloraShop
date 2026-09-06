@@ -1,17 +1,19 @@
 import { formatPrice, formatStock } from '../../shared/lib/format'
+import { Link } from 'react-router-dom'
 import { Icon } from '../../shared/ui/Icon'
 import { Summary } from '../components/StorefrontComponents'
+import { catalogPath } from '../routing/paths'
 
 const price = formatPrice
 const stockLabel = formatStock
 
-export function Cart({ cart, onChange, onNavigate }) {
+export function Cart({ cart, onChange }) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const delivery = subtotal >= 1500 || !subtotal ? 0 : 90
   return (
     <main className="main-content cart-page">
       <div className="crumbs">
-        <button onClick={() => onNavigate('home')}>Головна</button>
+        <Link to="/">Головна</Link>
         <Icon name="chevron" size={14} />
         <span>Кошик</span>
       </div>
@@ -66,7 +68,7 @@ export function Cart({ cart, onChange, onNavigate }) {
             subtotal={subtotal}
             delivery={delivery}
             button="Оформити замовлення"
-            onClick={() => onNavigate('checkout')}
+            to="/checkout"
           />
         </div>
       ) : (
@@ -77,9 +79,9 @@ export function Cart({ cart, onChange, onNavigate }) {
           <p className="eyebrow">Поки що порожньо</p>
           <h2>У кошику тихо</h2>
           <p>Знайдіть щось, що відгукнеться саме вам.</p>
-          <button className="button-dark" onClick={() => onNavigate('catalog')}>
+          <Link className="button-dark" to={catalogPath()}>
             Перейти до магазину
-          </button>
+          </Link>
         </div>
       )}
     </main>

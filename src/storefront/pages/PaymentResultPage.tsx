@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../../api'
 import { Icon } from '../../shared/ui/Icon'
 
@@ -35,13 +36,14 @@ const paymentLabels = {
   },
 }
 
-function orderCodeFromLocation() {
-  const code = new URLSearchParams(window.location.search).get('order')?.trim() ?? ''
+function orderCodeFromSearchParams(searchParams: URLSearchParams) {
+  const code = searchParams.get('order')?.trim() ?? ''
   return /^VL-\d{4}-[A-F0-9]{12}$/.test(code) ? code : ''
 }
 
-export function PaymentResult({ loading, onNavigate, onSettled }) {
-  const [code] = useState(orderCodeFromLocation)
+export function PaymentResult({ loading, onSettled }) {
+  const [searchParams] = useSearchParams()
+  const code = orderCodeFromSearchParams(searchParams)
   const [status, setStatus] = useState('pending')
   const [error, setError] = useState('')
   const [isCancelling, setIsCancelling] = useState(false)
@@ -101,9 +103,9 @@ export function PaymentResult({ loading, onNavigate, onSettled }) {
         <p className="eyebrow">Velora</p>
         <h1>Не знайшли платіж</h1>
         <p>Відкрийте сторінку оплати зі свого особистого кабінету або кошика.</p>
-        <button className="button-dark" onClick={() => onNavigate('account')}>
+        <Link className="button-dark" to="/account">
           До кабінету
-        </button>
+        </Link>
       </main>
     )
 
@@ -128,13 +130,13 @@ export function PaymentResult({ loading, onNavigate, onSettled }) {
         </button>
       )}
       {status === 'paid' ? (
-        <button className="button-dark" onClick={() => onNavigate('account')}>
+        <Link className="button-dark" to="/account">
           Переглянути замовлення
-        </button>
+        </Link>
       ) : status !== 'pending' ? (
-        <button className="button-dark" onClick={() => onNavigate('cart')}>
+        <Link className="button-dark" to="/cart">
           Повернутися до кошика
-        </button>
+        </Link>
       ) : null}
     </main>
   )

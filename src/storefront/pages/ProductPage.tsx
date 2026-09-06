@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { formatPrice, formatStock } from '../../shared/lib/format'
 import { Icon } from '../../shared/ui/Icon'
 import { ProductCard } from '../components/StorefrontComponents'
+import { catalogPath } from '../routing/paths'
 
 const price = formatPrice
 const stockLabel = formatStock
 
-export function ProductView({ products, item, cart, wishlist, onAdd, onWish, onCatalog, onOpen }) {
+export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
   const [tab, setTab] = useState('Опис')
   const [tone, setTone] = useState(0)
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
@@ -17,9 +19,9 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish, onC
   return (
     <main className="main-content product-page">
       <div className="crumbs">
-        <button onClick={() => onCatalog(item.category)}>Магазин</button>
+        <Link to={catalogPath()}>Магазин</Link>
         <Icon name="chevron" size={14} />
-        <button onClick={() => onCatalog(item.category)}>{item.category}</button>
+        <Link to={catalogPath(item.categorySlug)}>{item.category}</Link>
         <Icon name="chevron" size={14} />
         <span>{item.name}</span>
       </div>
@@ -149,7 +151,6 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish, onC
               cart={cart}
               isWishlisted={wishlist.includes(product.id)}
               onAdd={onAdd}
-              onOpen={onOpen}
               onWish={onWish}
             />
           ))}

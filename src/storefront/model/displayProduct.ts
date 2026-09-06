@@ -17,7 +17,11 @@ export type DisplayProduct = StorefrontProduct & {
   tones: [string, string]
 }
 
-export type DisplayCategory = [string, string]
+export type DisplayCategory = {
+  name: string
+  slug: string | null
+  icon: string
+}
 
 export function toDisplayProducts(products: StorefrontProduct[]): DisplayProduct[] {
   return products.map((product, index) => ({
@@ -29,11 +33,15 @@ export function toDisplayProducts(products: StorefrontProduct[]): DisplayProduct
   }))
 }
 
-export function toDisplayCategories(categories: Array<{ name: string }>): DisplayCategory[] {
+export function toDisplayCategories(categories: Array<{ name: string; slug: string }>): DisplayCategory[] {
   return [
-    ['Усе', 'sparkles'],
+    { name: 'Усе', slug: null, icon: 'sparkles' },
     ...categories.map(
-      (category) => [category.name, categoryIcons.get(category.name) ?? 'sparkles'] as DisplayCategory,
+      (category) => ({
+        name: category.name,
+        slug: category.slug,
+        icon: categoryIcons.get(category.name) ?? 'sparkles',
+      }),
     ),
   ]
 }

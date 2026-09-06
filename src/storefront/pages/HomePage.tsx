@@ -1,9 +1,11 @@
 import { Icon } from '../../shared/ui/Icon'
+import { Link } from 'react-router-dom'
 import { ProductCard } from '../components/StorefrontComponents'
+import { catalogPath } from '../routing/paths'
 
 const image = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=85`
 
-export function Home({ products, categories, onCatalog, onOpen, cart, wishlist, onAdd, onWish }) {
+export function Home({ products, categories, cart, wishlist, onAdd, onWish }) {
   return (
     <main>
       <section className="hero-section">
@@ -19,12 +21,12 @@ export function Home({ products, categories, onCatalog, onOpen, cart, wishlist, 
             повільніше.
           </p>
           <div className="hero-buttons">
-            <button className="button-dark" onClick={() => onCatalog('Усе')}>
+            <Link className="button-dark" to={catalogPath()}>
               Переглянути колекцію <Icon name="arrow" size={17} />
-            </button>
-            <button className="text-button" onClick={() => onCatalog('Подарунки')}>
+            </Link>
+            <Link className="text-button" to={catalogPath('podarunky')}>
               Ідеї для подарунків
-            </button>
+            </Link>
           </div>
         </div>
         <div className="hero-visual">
@@ -47,9 +49,9 @@ export function Home({ products, categories, onCatalog, onOpen, cart, wishlist, 
             <p className="eyebrow">Вибране для вас</p>
             <h2>Маленькі речі з великим настроєм</h2>
           </div>
-          <button className="text-link" onClick={() => onCatalog('Усе')}>
+          <Link className="text-link" to={catalogPath()}>
             Усі товари <Icon name="arrow" size={16} />
-          </button>
+          </Link>
         </div>
         <div className="featured-grid">
           {products.slice(0, 4).map((item) => (
@@ -59,7 +61,6 @@ export function Home({ products, categories, onCatalog, onOpen, cart, wishlist, 
               cart={cart}
               isWishlisted={wishlist.includes(item.id)}
               onAdd={onAdd}
-              onOpen={onOpen}
               onWish={onWish}
             />
           ))}
@@ -73,9 +74,9 @@ export function Home({ products, categories, onCatalog, onOpen, cart, wishlist, 
             <br />
             Це відчуття.
           </h2>
-          <button className="text-link light" onClick={() => onCatalog('Дім')}>
+          <Link className="text-link light" to={catalogPath('dim')}>
             Створити свій простір <Icon name="arrow" size={16} />
-          </button>
+          </Link>
         </div>
         <img src={image('photo-1616486338812-3dadae4b4ace')} alt="Теплий інтер’єр" />
       </section>
@@ -87,14 +88,14 @@ export function Home({ products, categories, onCatalog, onOpen, cart, wishlist, 
           </div>
         </div>
         <div className="category-tiles">
-          {categories.slice(1).map(([label, icon], index) => (
-            <button key={label} onClick={() => onCatalog(label)}>
+          {categories.slice(1).map((category, index) => (
+            <Link key={category.slug} to={catalogPath(category.slug)}>
               <span className={`tile-icon tile-${index}`}>
-                <Icon name={icon} size={26} />
+                <Icon name={category.icon} size={26} />
               </span>
-              <span>{label}</span>
+              <span>{category.name}</span>
               <Icon name="arrow" size={17} />
-            </button>
+            </Link>
           ))}
         </div>
       </section>

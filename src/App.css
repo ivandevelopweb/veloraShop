@@ -39,6 +39,10 @@ button {
   background: transparent;
   cursor: pointer;
 }
+a {
+  color: inherit;
+  text-decoration: none;
+}
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
@@ -104,13 +108,16 @@ input::placeholder {
   align-items: center;
   gap: 25px;
 }
-.header-nav button {
+.header-nav button,
+.header-nav a {
   font-size: 13px;
   color: #544e48;
   transition: color 0.2s;
 }
 .header-nav button:hover,
-footer button:hover {
+.header-nav a:hover,
+footer button:hover,
+footer a:hover {
   color: var(--gold-dark);
 }
 .search-box {
@@ -145,7 +152,8 @@ footer button:hover {
   align-items: center;
   gap: 15px;
 }
-.header-actions > button {
+.header-actions > button,
+.header-actions > a {
   width: 33px;
   height: 33px;
   display: grid;
@@ -402,6 +410,7 @@ h1 i,
   text-transform: uppercase;
 }
 .product-name {
+  display: inline-block;
   text-align: left;
   font: 500 19px/1.15 var(--serif);
 }
@@ -515,7 +524,8 @@ h1 i,
   grid-template-columns: repeat(4, 1fr);
   gap: 11px;
 }
-.category-tiles button {
+.category-tiles button,
+.category-tiles a {
   min-height: 130px;
   padding: 18px;
   display: flex;
@@ -528,15 +538,18 @@ h1 i,
     background 0.2s,
     transform 0.2s;
 }
-.category-tiles button:hover {
+.category-tiles button:hover,
+.category-tiles a:hover {
   background: #ebe0d1;
   transform: translateY(-2px);
 }
-.category-tiles button > span:not(.tile-icon) {
+.category-tiles button > span:not(.tile-icon),
+.category-tiles a > span:not(.tile-icon) {
   margin-top: auto;
   font: 500 19px var(--serif);
 }
-.category-tiles button > svg {
+.category-tiles button > svg,
+.category-tiles a > svg {
   margin-left: auto;
   color: var(--gold-dark);
 }
@@ -577,7 +590,8 @@ h1 i,
   gap: 5px;
   font-size: 11px;
 }
-.crumbs button:hover {
+.crumbs button:hover,
+.crumbs a:hover {
   color: var(--gold-dark);
 }
 .catalog-title {
@@ -612,7 +626,8 @@ h1 i,
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }
-.category-rail button {
+.category-rail button,
+.category-rail a {
   white-space: nowrap;
   padding: 15px 17px 13px;
   border-right: 1px solid var(--line);
@@ -622,11 +637,14 @@ h1 i,
   color: #625a53;
   font-size: 12px;
 }
-.category-rail button:first-child {
+.category-rail button:first-child,
+.category-rail a:first-child {
   border-left: 1px solid var(--line);
 }
 .category-rail button:hover,
-.category-rail button.active {
+.category-rail button.active,
+.category-rail a:hover,
+.category-rail a.active {
   background: #f3ece2;
   color: var(--ink);
 }
@@ -1442,7 +1460,8 @@ footer {
   align-content: start;
   gap: 10px;
 }
-.footer-top button:not(.brand) {
+.footer-top button:not(.brand),
+.footer-top a:not(.brand) {
   color: #bdb3a8;
   text-align: left;
   font-size: 11px;
@@ -1637,7 +1656,8 @@ footer {
   .header-actions {
     gap: 4px;
   }
-  .header-actions > button:first-child {
+  .header-actions > button:first-child,
+  .header-actions > a:first-child {
     display: none;
   }
   .mobile-panel {
@@ -1650,7 +1670,8 @@ footer {
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
     padding: 10px 16px 17px;
   }
-  .mobile-panel button {
+  .mobile-panel button,
+  .mobile-panel a {
     padding: 11px 0;
     border-bottom: 1px solid var(--line);
     text-align: left;
@@ -1740,7 +1761,8 @@ footer {
   .category-tiles {
     grid-template-columns: repeat(2, 1fr);
   }
-  .category-tiles button {
+  .category-tiles button,
+  .category-tiles a {
     min-height: 120px;
   }
   .catalog-page,
@@ -1766,7 +1788,8 @@ footer {
   .category-rail {
     margin-inline: -16px;
   }
-  .category-rail button {
+  .category-rail button,
+  .category-rail a {
     padding-inline: 13px;
   }
   .catalog-layout {

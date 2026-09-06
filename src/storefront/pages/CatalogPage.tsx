@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { formatPrice } from '../../shared/lib/format'
 import { Icon } from '../../shared/ui/Icon'
 import { CategoryRail, ProductCard } from '../components/StorefrontComponents'
@@ -9,18 +10,21 @@ export function Catalog({
   products,
   categories,
   activeCategory,
-  setCategory,
+  activeCategorySlug,
   search,
-  setSearch,
+  sort,
+  maxPrice,
+  ratingOnly,
+  onSearchChange,
+  onSortChange,
+  onMaxPriceChange,
+  onRatingOnlyChange,
+  onResetFilters,
   cart,
   wishlist,
   onAdd,
-  onOpen,
   onWish,
 }) {
-  const [sort, setSort] = useState('popular')
-  const [maxPrice, setMaxPrice] = useState(4000)
-  const [ratingOnly, setRatingOnly] = useState(false)
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
     return products
@@ -45,7 +49,7 @@ export function Catalog({
   return (
     <main className="catalog-page main-content">
       <div className="crumbs">
-        <button onClick={() => setCategory('Усе')}>Головна</button>
+        <Link to="/">Головна</Link>
         <Icon name="chevron" size={14} />
         <span>Магазин</span>
         {activeCategory !== 'Усе' && (
@@ -65,20 +69,19 @@ export function Catalog({
           <Icon name="search" size={18} />
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Шукати товари"
           />
         </label>
       </div>
-      <CategoryRail categories={categories} active={activeCategory} onSelect={setCategory} />
+      <CategoryRail categories={categories} activeSlug={activeCategorySlug} />
       <div className="catalog-layout">
         <aside className="filters">
           <div className="filter-heading">
             <span>Фільтри</span>
             <button
               onClick={() => {
-                setMaxPrice(4000)
-                setRatingOnly(false)
+                onResetFilters()
               }}
             >
               Скинути
@@ -94,7 +97,7 @@ export function Catalog({
               max="4000"
               step="100"
               value={maxPrice}
-              onChange={(event) => setMaxPrice(Number(event.target.value))}
+              onChange={(event) => onMaxPriceChange(Number(event.target.value))}
             />
             <div className="range-labels">
               <span>300 ₴</span>
@@ -105,7 +108,7 @@ export function Catalog({
             <input
               type="checkbox"
               checked={ratingOnly}
-              onChange={(event) => setRatingOnly(event.target.checked)}
+              onChange={(event) => onRatingOnlyChange(event.target.checked)}
             />
             <span>Рейтинг 4.8 і вище</span>
           </label>
@@ -118,7 +121,7 @@ export function Catalog({
             <span>Показано {filtered.length} товарів</span>
             <label>
               Сортувати
-              <select value={sort} onChange={(event) => setSort(event.target.value)}>
+              <select value={sort} onChange={(event) => onSortChange(event.target.value)}>
                 <option value="popular">За популярністю</option>
                 <option value="low">Спочатку дешевші</option>
                 <option value="high">Спочатку дорожчі</option>
@@ -135,7 +138,6 @@ export function Catalog({
                   cart={cart}
                   isWishlisted={wishlist.includes(item.id)}
                   onAdd={onAdd}
-                  onOpen={onOpen}
                   onWish={onWish}
                 />
               ))}
@@ -148,10 +150,7 @@ export function Catalog({
               <button
                 className="button-dark"
                 onClick={() => {
-                  setSearch('')
-                  setCategory('Усе')
-                  setMaxPrice(4000)
-                  setRatingOnly(false)
+                  onResetFilters()
                 }}
               >
                 Показати все

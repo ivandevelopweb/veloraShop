@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Brand } from '../../shared/ui/Brand'
 import { Icon } from '../../shared/ui/Icon'
 import { formatPrice, formatStock } from '../../shared/lib/format'
+import { catalogPath, productPath } from '../routing/paths'
 
 const price = formatPrice
 const stockLabel = formatStock
 
-export function ProductCard({ item, cart, isWishlisted, onAdd, onOpen, onWish }) {
+export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
   const atStockLimit = inCart >= item.stock
   return (
@@ -18,19 +20,19 @@ export function ProductCard({ item, cart, isWishlisted, onAdd, onOpen, onWish })
       >
         <Icon name="heart" size={19} />
       </button>
-      <button
+      <Link
         className="product-image"
-        onClick={() => onOpen(item)}
+        to={productPath(item.slug)}
         aria-label={`Відкрити ${item.name}`}
       >
         {item.badge && <span className="product-badge">{item.badge}</span>}
         <img src={item.image} alt={item.name} loading="lazy" />
-      </button>
+      </Link>
       <div className="product-copy">
         <p className="product-category">{item.category}</p>
-        <button className="product-name" onClick={() => onOpen(item)}>
+        <Link className="product-name" to={productPath(item.slug)}>
           {item.name}
-        </button>
+        </Link>
         <p className="product-subtitle">{item.subtitle}</p>
         <div className="rating">
           <span>★</span>
@@ -67,12 +69,9 @@ export function ProductCard({ item, cart, isWishlisted, onAdd, onOpen, onWish })
 }
 
 
-export function Header({ cartCount, onNavigate, onCatalog, search, setSearch }) {
+export function Header({ cartCount, search, onSearchChange }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const go = (page) => {
-    setMenuOpen(false)
-    onNavigate(page)
-  }
+  const closeMenu = () => setMenuOpen(false)
   return (
     <>
       <div className="topline">
@@ -83,37 +82,44 @@ export function Header({ cartCount, onNavigate, onCatalog, search, setSearch }) 
         <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Меню">
           <Icon name={menuOpen ? 'close' : 'menu'} size={22} />
         </button>
-        <Brand onClick={() => go('home')} />
+        <Brand />
         <nav className="header-nav">
-          <button onClick={() => onCatalog('Усе')}>Магазин</button>
-          <button onClick={() => onCatalog('Подарунки')}>Подарунки</button>
-          <button onClick={() => go('about')}>Про Velora</button>
+          <Link to={catalogPath()}>Магазин</Link>
+          <Link to={catalogPath('podarunky')}>Подарунки</Link>
+          <Link to="/about">Про Velora</Link>
         </nav>
         <label className="search-box">
           <Icon name="search" size={18} />
           <input
             value={search}
-            onFocus={() => onNavigate('catalog')}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Пошук у Velora"
           />
         </label>
         <div className="header-actions">
-          <button onClick={() => go('account')} aria-label="Особистий кабінет">
+          <Link to="/account" aria-label="Особистий кабінет">
             <Icon name="user" size={21} />
-          </button>
-          <button className="header-bag" onClick={() => go('cart')} aria-label="Кошик">
+          </Link>
+          <Link className="header-bag" to="/cart" aria-label="Кошик">
             <Icon name="bag" size={21} />
             {cartCount > 0 && <b>{cartCount}</b>}
-          </button>
+          </Link>
         </div>
       </header>
       {menuOpen && (
         <nav className="mobile-panel">
-          <button onClick={() => onCatalog('Усе')}>Магазин</button>
-          <button onClick={() => onCatalog('Подарунки')}>Подарунки</button>
-          <button onClick={() => go('about')}>Про Velora</button>
-          <button onClick={() => go('account')}>Особистий кабінет</button>
+          <Link onClick={closeMenu} to={catalogPath()}>
+            Магазин
+          </Link>
+          <Link onClick={closeMenu} to={catalogPath('podarunky')}>
+            Подарунки
+          </Link>
+          <Link onClick={closeMenu} to="/about">
+            Про Velora
+          </Link>
+          <Link onClick={closeMenu} to="/account">
+            Особистий кабінет
+          </Link>
         </nav>
       )}
     </>
@@ -121,24 +127,32 @@ export function Header({ cartCount, onNavigate, onCatalog, search, setSearch }) 
 }
 
 
-export function CategoryRail({ categories, active, onSelect }) {
+export function CategoryRail({ categories, activeSlug }) {
   return (
     <div className="category-rail">
-      {categories.map(([label, icon]) => (
-        <button
-          className={active === label ? 'active' : ''}
-          onClick={() => onSelect(label)}
-          key={label}
+      {categories.map((category) => (
+        <Link
+          className={activeSlug === category.slug ? 'active' : ''}
+          to={catalogPath(category.slug)}
+          key={category.slug ?? 'all'}
         >
-          <Icon name={icon} size={19} />
-          <span>{label}</span>
-        </button>
+          <Icon name={category.icon} size={19} />
+          <span>{category.name}</span>
+        </Link>
       ))}
     </div>
   )
 }
 
-export function Summary({ subtotal, delivery = 0, button, onClick = undefined, children = null, submit = false }) {
+export function Summary({
+  subtotal,
+  delivery = 0,
+  button,
+  onClick = undefined,
+  children = null,
+  submit = false,
+  to = undefined,
+}) {
   return (
     <aside className="order-summary">
       <p className="eyebrow">Разом</p>
@@ -155,9 +169,15 @@ export function Summary({ subtotal, delivery = 0, button, onClick = undefined, c
         <span>До сплати</span>
         <strong>{price(subtotal + delivery)} ₴</strong>
       </div>
-      <button className="button-dark full" type={submit ? 'submit' : 'button'} onClick={onClick}>
-        {button} <Icon name="arrow" size={17} />
-      </button>
+      {to ? (
+        <Link className="button-dark full" to={to}>
+          {button} <Icon name="arrow" size={17} />
+        </Link>
+      ) : (
+        <button className="button-dark full" type={submit ? 'submit' : 'button'} onClick={onClick}>
+          {button} <Icon name="arrow" size={17} />
+        </button>
+      )}
       <p className="summary-note">
         <Icon name="shield" size={16} /> Ваші дані потрібні лише для оформлення замовлення.
       </p>
@@ -165,24 +185,24 @@ export function Summary({ subtotal, delivery = 0, button, onClick = undefined, c
   )
 }
 
-export function Footer({ onNavigate, onCatalog }) {
+export function Footer() {
   return (
     <footer>
       <div className="footer-top">
         <div>
-          <Brand footer onClick={() => onNavigate('home')} />
+          <Brand footer />
           <p>Речі для ваших тихих, красивих моментів.</p>
         </div>
         <div>
           <h3>Магазин</h3>
-          <button onClick={() => onCatalog('Усе')}>Усі товари</button>
-          <button onClick={() => onCatalog('Подарунки')}>Подарункові набори</button>
-          <button onClick={() => onNavigate('account')}>Особистий кабінет</button>
+          <Link to={catalogPath()}>Усі товари</Link>
+          <Link to={catalogPath('podarunky')}>Подарункові набори</Link>
+          <Link to="/account">Особистий кабінет</Link>
         </div>
         <div>
           <h3>Допомога</h3>
-          <button onClick={() => onNavigate('about')}>Про Velora</button>
-          <button onClick={() => onNavigate('cart')}>Кошик</button>
+          <Link to="/about">Про Velora</Link>
+          <Link to="/cart">Кошик</Link>
           <span>hello@velora.ua</span>
         </div>
         <div className="newsletter">

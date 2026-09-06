@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { formatPrice } from '../../shared/lib/format'
 import { Icon } from '../../shared/ui/Icon'
 import { Summary } from '../components/StorefrontComponents'
+import { paymentResultPath } from '../routing/paths'
 
 const price = formatPrice
 
-export function Checkout({ cart, onNavigate, onComplete }) {
+export function Checkout({ cart, onComplete }) {
   const [delivery, setDelivery] = useState('Нова пошта')
   const [checkout, setCheckout] = useState(null)
   const [error, setError] = useState('')
@@ -67,21 +69,15 @@ export function Checkout({ cart, onNavigate, onComplete }) {
             Відкрити LiqPay <Icon name="arrow" size={17} />
           </button>
         </form>
-        <button
-          className="text-link"
-          type="button"
-          onClick={() =>
-            window.location.assign(`/payment/result?order=${encodeURIComponent(checkout.order.code)}`)
-          }
-        >
+        <Link className="text-link" to={paymentResultPath(checkout.order.code)}>
           Перейти до статусу оплати
-        </button>
+        </Link>
       </main>
     )
   return (
     <main className="main-content checkout-page">
       <div className="crumbs">
-        <button onClick={() => onNavigate('cart')}>Кошик</button>
+        <Link to="/cart">Кошик</Link>
         <Icon name="chevron" size={14} />
         <span>Оформлення</span>
       </div>

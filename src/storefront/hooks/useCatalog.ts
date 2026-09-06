@@ -4,10 +4,14 @@ import { toDisplayCategories, toDisplayProducts, type DisplayCategory, type Disp
 
 export function useCatalog() {
   const [products, setProducts] = useState<DisplayProduct[]>([])
-  const [categories, setCategories] = useState<DisplayCategory[]>([['Усе', 'sparkles']])
+  const [categories, setCategories] = useState<DisplayCategory[]>([
+    { name: 'Усе', slug: null, icon: 'sparkles' },
+  ])
   const [catalogError, setCatalogError] = useState('')
+  const [catalogLoading, setCatalogLoading] = useState(true)
 
   const refreshCatalog = useCallback(async () => {
+    setCatalogLoading(true)
     try {
       const [productResponse, categoryResponse] = await Promise.all([
         api.getProducts({ pageSize: 100 }),
@@ -19,9 +23,11 @@ export function useCatalog() {
       return true
     } catch (error) {
       setProducts([])
-      setCategories([['Усе', 'sparkles']])
+      setCategories([{ name: 'Усе', slug: null, icon: 'sparkles' }])
       setCatalogError(error instanceof Error ? error.message : 'Не вдалося завантажити каталог.')
       return false
+    } finally {
+      setCatalogLoading(false)
     }
   }, [])
 
@@ -29,5 +35,5 @@ export function useCatalog() {
     void Promise.resolve().then(refreshCatalog)
   }, [refreshCatalog])
 
-  return { products, categories, catalogError, refreshCatalog }
+  return { products, categories, catalogError, catalogLoading, refreshCatalog }
 }

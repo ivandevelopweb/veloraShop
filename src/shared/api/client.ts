@@ -124,6 +124,8 @@ export const api = {
       total: number
     }>('GET', `/api/products${suffix}`)
   },
+  getProduct: (slug: string) =>
+    request<{ product: StorefrontProduct }>('GET', `/api/products/${encodeURIComponent(slug)}`),
   getCategories: () => request<{ categories: Category[] }>('GET', '/api/categories'),
   admin: {
     dashboard: () =>

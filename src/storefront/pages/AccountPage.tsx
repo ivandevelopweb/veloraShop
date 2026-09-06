@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api'
 import { formatPrice } from '../../shared/lib/format'
 import { Icon } from '../../shared/ui/Icon'
+import { catalogPath } from '../routing/paths'
 
 const price = formatPrice
 const paymentStatusLabel = {
@@ -14,13 +16,11 @@ const paymentStatusLabel = {
 }
 
 export function Account({
-  onNavigate,
   user,
   mode,
   onModeChange,
   onAuthenticated,
   onLogout,
-  onAdmin,
   orders,
   loading,
 }) {
@@ -91,9 +91,9 @@ export function Account({
               Вийти з профілю
             </button>
             {user.role === 'admin' && (
-              <button className="text-link" onClick={onAdmin}>
+              <Link className="text-link" to="/admin">
                 Відкрити адмін-панель
-              </button>
+              </Link>
             )}
           </div>
         ) : (
@@ -187,9 +187,9 @@ export function Account({
             ))}
           </div>
         )}
-        <button className="text-link" onClick={() => onNavigate('catalog')}>
+        <Link className="text-link" to={catalogPath()}>
           Перейти до покупок <Icon name="arrow" size={16} />
-        </button>
+        </Link>
       </section>
     </main>
   )
