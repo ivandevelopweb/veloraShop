@@ -1,6 +1,7 @@
 import { Icon } from '../../shared/ui/Icon'
 import { Link } from 'react-router-dom'
 import { ProductCard } from '../components/StorefrontComponents'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { catalogPath } from '../routing/paths'
 
 const image = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=85`
@@ -91,7 +92,7 @@ export function Home({ products, categories, cart, wishlist, onAdd, onWish }) {
           {categories.slice(1).map((category, index) => (
             <Link key={category.slug} to={catalogPath(category.slug)}>
               <span className={`tile-icon tile-${index}`}>
-                <Icon name={category.icon} size={26} />
+                <CategoryIcon name={category.icon} size={26} />
               </span>
               <span>{category.name}</span>
               <Icon name="arrow" size={17} />

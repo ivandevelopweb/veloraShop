@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Brand } from '../../shared/ui/Brand'
 import { Icon } from '../../shared/ui/Icon'
+import { CategoryIcon } from './CategoryIcon'
 import { formatPrice, formatStock } from '../../shared/lib/format'
 import { catalogPath, productPath } from '../routing/paths'
 
@@ -136,7 +137,7 @@ export function CategoryRail({ categories, activeSlug }) {
           to={catalogPath(category.slug)}
           key={category.slug ?? 'all'}
         >
-          <Icon name={category.icon} size={19} />
+          <CategoryIcon name={category.icon} size={19} />
           <span>{category.name}</span>
         </Link>
       ))}

@@ -1,13 +1,15 @@
 import type { StorefrontProduct } from '../../api'
 
 const categoryIcons = new Map([
-  ['Парфумерія', 'bottle'],
-  ['Догляд', 'flower'],
-  ['Дім', 'home'],
-  ['Аксесуари', 'gem'],
-  ['Wellness', 'sun'],
-  ['Техніка', 'bolt'],
+  ['Парфумерія', 'perfume'],
+  ['Догляд', 'care'],
+  ['Дім', 'armchair'],
+  ['Аксесуари', 'bag'],
+  ['Wellness', 'leaf'],
+  ['Техніка', 'headphones'],
   ['Подарунки', 'gift'],
+  ['Товари для дому', 'basket'],
+  ['Шапки', 'beanie'],
 ])
 
 export type DisplayProduct = StorefrontProduct & {
