@@ -88,20 +88,19 @@ input::placeholder {
 }
 .brand-logo-crop {
   position: relative;
-  width: 35px;
-  height: 35px;
+  width: 37px;
+  height: 37px;
   display: inline-block;
   overflow: hidden;
-  border: 1px solid #e2d8ca;
   border-radius: 50%;
-  background: #fffdf9;
+  background: #fdfaf5;
 }
 .brand-logo-crop img {
   position: absolute;
-  width: 85px;
+  width: 90px;
   max-width: none;
-  top: -17px;
-  left: -24px;
+  top: -18px;
+  left: -26px;
 }
 .header-nav {
   display: flex;
@@ -1632,13 +1631,13 @@ footer {
     letter-spacing: 0.15em;
   }
   .brand-logo-crop {
-    width: 29px;
-    height: 29px;
+    width: 30px;
+    height: 30px;
   }
   .brand-logo-crop img {
-    width: 71px;
-    left: -20px;
-    top: -14px;
+    width: 73px;
+    left: -21px;
+    top: -15px;
   }
   .header-nav {
     display: none;
