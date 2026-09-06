@@ -4,10 +4,7 @@ import { Link } from 'react-router-dom'
 export function Brand({ footer = false }) {
   return (
     <Link className={`brand ${footer ? 'footer-brand' : ''}`} to="/" aria-label="Velora — головна">
-      <span className="brand-logo-crop">
-        <img src={veloraLogo} alt="" />
-      </span>
-      <span>VELORA</span>
+      <img className="brand-logo" src={veloraLogo} alt="Velora" />
     </Link>
   )
 }
