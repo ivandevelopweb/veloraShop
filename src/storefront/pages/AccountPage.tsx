@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../api'
 import { formatPrice } from '../../shared/lib/format'
-import { Icon } from '../../shared/ui/Icon'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { catalogPath } from '../routing/paths'
 
 const price = formatPrice
@@ -58,20 +58,9 @@ export function Account({
   return (
     <main className="main-content account-page">
       <div className="account-intro">
-        <p className="eyebrow">Ваш простір Velora</p>
+        <p className="eyebrow">Акаунт</p>
         <h1>Особистий кабінет</h1>
-        <p>Зберігайте улюблене, стежте за замовленнями й отримуйте маленькі знаки уваги.</p>
-        <div className="account-benefits">
-          <span>
-            <Icon name="heart" size={18} /> Обране в одному місці
-          </span>
-          <span>
-            <Icon name="gift" size={18} /> Подарунки для вас
-          </span>
-          <span>
-            <Icon name="sparkles" size={18} /> Ранні новинки
-          </span>
-        </div>
+        <p>Авторизація потрібна для доступу до кошика, оформлення та історії замовлень.</p>
       </div>
       <section className="auth-card">
         {loading ? (
@@ -172,7 +161,7 @@ export function Account({
             ? orders.length
               ? 'Історія ваших замовлень'
               : 'Ваші замовлення з’являться тут після оформлення.'
-            : 'Тут будуть ваші замовлення, адреси та улюблені товари.'}
+            : 'Тут будуть ваші замовлення після оформлення.'}
         </h2>
         {user && orders.length > 0 && (
           <div className="order-history">

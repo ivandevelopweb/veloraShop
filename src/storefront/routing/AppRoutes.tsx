@@ -7,8 +7,12 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import AdminApp from '../../admin/AdminApp'
-import { Icon } from '../../shared/ui/Icon'
+import type { CheckoutDetails, Order, User } from '../../api'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { Footer, Header } from '../components/StorefrontComponents'
+import type { ToastState } from '../hooks/useToast'
+import type { DisplayCategory, DisplayProduct } from '../model/displayProduct'
+import type { DisplayCartItem } from '../model/cart'
 import {
   About,
   Account,
@@ -17,6 +21,7 @@ import {
   Home,
   NotFound,
   PaymentResult,
+  Wishlist,
 } from '../pages'
 import { CatalogRoute } from './CatalogRoute'
 import { ProductRoute } from './ProductRoute'
@@ -32,6 +37,27 @@ import { RouteLoading } from './RouteStates'
 
 function currentPath(location) {
   return `${location.pathname}${location.search}`
+}
+
+type StorefrontRouteProps = {
+  products: DisplayProduct[]
+  categories: DisplayCategory[]
+  catalogError: string
+  catalogLoading: boolean
+  refreshCatalog: () => Promise<boolean>
+  cart: DisplayCartItem[]
+  wishlist: number[]
+  user: User | null
+  orders: Order[]
+  sessionLoading: boolean
+  toast: ToastState | null
+  clearToast: () => void
+  onAdd: (item: DisplayProduct) => void | Promise<void>
+  onWish: (id: number) => void
+  onChangeQuantity: (id: number, quantity: number) => void | Promise<void>
+  onAuthenticated: (account: User) => void | Promise<void>
+  onLogout: () => void | Promise<void>
+  onCheckout: (details: CheckoutDetails) => Promise<unknown>
 }
 
 function ProtectedRoute({ user, sessionLoading, children }) {
@@ -64,7 +90,7 @@ function StorefrontRoutes({
   orders,
   sessionLoading,
   toast,
-  setToast,
+  clearToast,
   onAdd,
   onWish,
   onChangeQuantity,
@@ -78,15 +104,23 @@ function StorefrontRoutes({
   const headerFilters = catalogMatch
     ? catalogFiltersFromSearch(location.search)
     : defaultCatalogFilters
-  const headerCategorySlug = catalogMatch?.[1] ?? null
+  const availableWishlistCount = products.filter((product) => wishlist.includes(product.id)).length
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [location.pathname])
+    const frame = window.requestAnimationFrame(() => {
+      if (location.hash) {
+        const target = document.getElementById(location.hash.slice(1))
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [location.hash, location.pathname])
 
   const updateHeaderSearch = (search) => {
     navigate(
-      catalogPath(headerCategorySlug, {
+      catalogPath(null, {
         ...headerFilters,
         search,
       }),
@@ -100,9 +134,14 @@ function StorefrontRoutes({
   return (
     <div className="app-shell">
       <Header
+        key={`${location.pathname}${location.search}`}
         cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+        wishlistCount={availableWishlistCount}
         search={headerFilters.search}
         onSearchChange={updateHeaderSearch}
+        categories={categories}
+        catalogLoading={catalogLoading}
+        catalogError={catalogError}
       />
       <Routes>
         <Route
@@ -115,6 +154,9 @@ function StorefrontRoutes({
               wishlist={wishlist}
               onAdd={onAdd}
               onWish={onWish}
+              catalogLoading={catalogLoading}
+              catalogError={catalogError}
+              refreshCatalog={refreshCatalog}
             />
           }
         />
@@ -157,6 +199,22 @@ function StorefrontRoutes({
               products={products}
               cart={cart}
               wishlist={wishlist}
+              onAdd={onAdd}
+              onWish={onWish}
+            />
+          }
+        />
+        <Route
+          path="/wishlist"
+          element={
+            <Wishlist
+              products={products}
+              categories={categories}
+              wishlist={wishlist}
+              catalogLoading={catalogLoading}
+              catalogError={catalogError}
+              refreshCatalog={refreshCatalog}
+              cart={cart}
               onAdd={onAdd}
               onWish={onWish}
             />
@@ -211,10 +269,15 @@ function StorefrontRoutes({
       </Routes>
       <Footer />
       {toast && (
-        <div className="toast">
-          <Icon name="check" size={18} />
-          {toast}
-          <button onClick={() => setToast('')} aria-label="Закрити сповіщення">
+        <div
+          className={`toast toast-${toast.kind}`}
+          role={toast.kind === 'error' ? 'alert' : 'status'}
+          aria-live={toast.kind === 'error' ? 'assertive' : 'polite'}
+          aria-atomic="true"
+        >
+          <Icon name={toast.kind === 'success' ? 'check' : toast.kind === 'error' ? 'alert' : 'shield'} size={18} />
+          <span>{toast.message}</span>
+          <button onClick={clearToast} aria-label="Закрити сповіщення">
             <Icon name="close" size={16} />
           </button>
         </div>
@@ -223,7 +286,10 @@ function StorefrontRoutes({
   )
 }
 
-export function AppRoutes({ onExitAdmin, ...storefrontProps }) {
+export function AppRoutes({
+  onExitAdmin,
+  ...storefrontProps
+}: StorefrontRouteProps & { onExitAdmin: () => void }) {
   return (
     <Routes>
       <Route

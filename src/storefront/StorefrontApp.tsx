@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api, ApiClientError, bootstrapCsrf, type CartItem, type Order, type User } from '../api'
 import '../App.css'
-import '../fullbleed.css'
 import { readStoredJson } from '../shared/lib/storage'
 import { hydrateCartItems } from './model/cart'
 import { useCatalog } from './hooks/useCatalog'
@@ -19,7 +18,7 @@ export default function StorefrontApp() {
   const [orders, setOrders] = useState<Order[]>([])
   const [sessionLoading, setSessionLoading] = useState(true)
   const { products, categories, catalogError, catalogLoading, refreshCatalog } = useCatalog()
-  const { toast, setToast } = useToast()
+  const { toast, notify, clearToast } = useToast()
 
   const cart = useMemo(() => hydrateCartItems(products, cartItems), [cartItems, products])
   const currentPath = `${location.pathname}${location.search}`
@@ -50,7 +49,7 @@ export default function StorefrontApp() {
         setOrders(orderResponse.orders)
       } catch (error) {
         if (isCurrent && !(error instanceof ApiClientError && error.status === 401)) {
-          setToast('Не вдалося з’єднатися з сервером. Спробуйте оновити сторінку.')
+          notify('Не вдалося з’єднатися з сервером. Спробуйте оновити сторінку.', 'error')
         }
       } finally {
         if (isCurrent) setSessionLoading(false)
@@ -61,18 +60,18 @@ export default function StorefrontApp() {
     return () => {
       isCurrent = false
     }
-  }, [setToast])
+  }, [notify])
 
   useEffect(() => {
     localStorage.setItem('velora-wishlist', JSON.stringify(wishlist))
   }, [wishlist])
 
   useEffect(() => {
-    if (catalogError) setToast('Не вдалося завантажити каталог. Спробуйте оновити сторінку.')
-  }, [catalogError, setToast])
+    if (catalogError) notify('Не вдалося завантажити каталог. Спробуйте оновити сторінку.', 'error')
+  }, [catalogError, notify])
 
   const showAuthentication = (message: string, mode: 'login' | 'register' = 'register') => {
-    setToast(message)
+    notify(message, 'status')
     navigate(accountPath({ mode, next: currentPath }))
   }
 
@@ -85,7 +84,7 @@ export default function StorefrontApp() {
     try {
       const response = await api.addToCart(item.id)
       applyCart(response.items)
-      setToast(`${item.name} додано до кошика`)
+      notify(`${item.name} додано до кошика`, 'success')
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401) {
         setUser(null)
@@ -93,7 +92,7 @@ export default function StorefrontApp() {
         showAuthentication('Сесія завершилася. Увійдіть знову, щоб додати товар.', 'login')
         return
       }
-      setToast(error instanceof Error ? error.message : 'Не вдалося оновити кошик.')
+      notify(error instanceof Error ? error.message : 'Не вдалося оновити кошик.', 'error')
     }
   }
 
@@ -104,7 +103,7 @@ export default function StorefrontApp() {
         quantity <= 0 ? await api.removeFromCart(id) : await api.updateCart(id, quantity)
       applyCart(response.items)
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Не вдалося оновити кошик.')
+      notify(error instanceof Error ? error.message : 'Не вдалося оновити кошик.', 'error')
     }
   }
 
@@ -112,9 +111,9 @@ export default function StorefrontApp() {
     setUser(account)
     try {
       await Promise.all([syncCart(), syncOrders()])
-      setToast(`Вітаємо, ${account.name}! Ваш профіль готовий.`)
+      notify(`Вітаємо, ${account.name}! Ваш профіль готовий.`, 'success')
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Не вдалося завантажити дані профілю.')
+      notify(error instanceof Error ? error.message : 'Не вдалося завантажити дані профілю.', 'error')
     }
   }
 
@@ -124,10 +123,10 @@ export default function StorefrontApp() {
       setUser(null)
       setCartItems([])
       setOrders([])
-      setToast('Ви вийшли з профілю.')
+      notify('Ви вийшли з профілю.', 'success')
       navigate('/')
     } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Не вдалося завершити сесію.')
+      notify(error instanceof Error ? error.message : 'Не вдалося завершити сесію.', 'error')
     }
   }
 
@@ -172,7 +171,7 @@ export default function StorefrontApp() {
       orders={orders}
       sessionLoading={sessionLoading}
       toast={toast}
-      setToast={setToast}
+      clearToast={clearToast}
       onAdd={add}
       onWish={wish}
       onChangeQuantity={changeQuantity}

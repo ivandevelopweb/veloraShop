@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../../api'
-import { Icon } from '../../shared/ui/Icon'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 
 const paymentLabels = {
   pending: {
@@ -99,7 +99,7 @@ export function PaymentResult({ loading, onSettled }) {
 
   if (!code)
     return (
-      <main className="main-content confirmation">
+      <main className="main-content confirmation route-state">
         <p className="eyebrow">Velora</p>
         <h1>Не знайшли платіж</h1>
         <p>Відкрийте сторінку оплати зі свого особистого кабінету або кошика.</p>

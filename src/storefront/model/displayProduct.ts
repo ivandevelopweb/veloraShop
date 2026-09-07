@@ -16,7 +16,6 @@ export type DisplayProduct = StorefrontProduct & {
   category: string
   subtitle: string
   reviews: number
-  tones: [string, string]
 }
 
 export type DisplayCategory = {
@@ -26,12 +25,11 @@ export type DisplayCategory = {
 }
 
 export function toDisplayProducts(products: StorefrontProduct[]): DisplayProduct[] {
-  return products.map((product, index) => ({
+  return products.map((product) => ({
     ...product,
     category: product.category ?? 'Інше',
     subtitle: product.shortDescription,
     reviews: product.reviewCount,
-    tones: index % 2 ? ['#d9c09a', '#2f2b27'] : ['#e8dfd1', '#b89062'],
   }))
 }
 

@@ -1,49 +1,55 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Brand } from '../../shared/ui/Brand'
-import { Icon } from '../../shared/ui/Icon'
-import { CategoryIcon } from './CategoryIcon'
-import { formatPrice, formatStock } from '../../shared/lib/format'
+import { StorefrontIcon as Icon } from './StorefrontIcon'
+import { formatPrice, formatPriceWithCurrency, formatStock } from '../../shared/lib/format'
 import { catalogPath, productPath } from '../routing/paths'
 
-const price = formatPrice
 const stockLabel = formatStock
+const price = formatPrice
 
 export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
   const atStockLimit = inCart >= item.stock
+  const imageSource = item.image ?? item.images?.[0]?.url ?? null
+  const hasDiscount = item.oldPrice !== null && item.oldPrice > item.price
   return (
     <article className="product-card">
       <button
         className={`wish-button ${isWishlisted ? 'active' : ''}`}
         onClick={() => onWish(item.id)}
-        aria-label="Додати до обраного"
+        aria-label={isWishlisted ? `Прибрати ${item.name} з обраного` : `Додати ${item.name} до обраного`}
+        aria-pressed={isWishlisted}
       >
-        <Icon name="heart" size={19} />
+        <Icon name={isWishlisted ? 'heart-filled' : 'heart'} size={20} />
       </button>
-      <Link
-        className="product-image"
-        to={productPath(item.slug)}
-        aria-label={`Відкрити ${item.name}`}
-      >
+      <Link className="product-image" to={productPath(item.slug)} aria-label={`Відкрити ${item.name}`}>
         {item.badge && <span className="product-badge">{item.badge}</span>}
-        <img src={item.image} alt={item.name} loading="lazy" />
+        {imageSource ? (
+          <img src={imageSource} alt={item.images?.[0]?.altText || item.name} loading="lazy" />
+        ) : (
+          <span className="product-image-placeholder">Фото відсутнє</span>
+        )}
       </Link>
       <div className="product-copy">
         <p className="product-category">{item.category}</p>
-        <Link className="product-name" to={productPath(item.slug)}>
-          {item.name}
-        </Link>
-        <p className="product-subtitle">{item.subtitle}</p>
-        <div className="rating">
-          <span>★</span>
-          {item.rating.toFixed(1)} <small>({item.reviews})</small>
+        <div className="product-text-group">
+          <Link className="product-name" to={productPath(item.slug)}>
+            {item.name}
+          </Link>
+          <p className="product-subtitle">{item.shortDescription}</p>
         </div>
-        <p className={`stock-note ${item.stock <= 5 ? 'low-stock' : ''}`}>{stockLabel(item.stock)}</p>
+        <div className="product-meta">
+          <div className="rating">
+            <Icon name="star" size={16} />
+            {item.rating.toFixed(1)} <small>· {item.reviewCount} оцінок</small>
+          </div>
+          <p className={`stock-note ${item.stock <= 5 ? 'low-stock' : ''}`}>{stockLabel(item.stock)}</p>
+        </div>
         <div className="product-bottom">
           <div className="price-wrap">
-            {item.oldPrice && <s>{price(item.oldPrice)} ₴</s>}
-            <strong>{price(item.price)} ₴</strong>
+            {hasDiscount && <s>{formatPriceWithCurrency(item.oldPrice)}</s>}
+            <strong>{formatPriceWithCurrency(item.price)}</strong>
           </div>
           <button
             className={`add-card ${inCart ? 'added' : ''}`}
@@ -51,17 +57,8 @@ export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
             disabled={atStockLimit}
             title={atStockLimit ? 'У кошику вже весь доступний залишок' : 'Додати до кошика'}
           >
-            {inCart ? (
-              <>
-                <Icon name="check" size={17} />
-                <span>{inCart}</span>
-              </>
-            ) : (
-              <>
-                <Icon name="bag" size={17} />
-                <span>До кошика</span>
-              </>
-            )}
+            <Icon name={inCart ? 'check' : 'bag'} size={17} />
+            <span>{inCart ? `У кошику · ${inCart}` : 'До кошика'}</span>
           </button>
         </div>
       </div>
@@ -70,58 +67,196 @@ export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
 }
 
 
-export function Header({ cartCount, search, onSearchChange }) {
+export function Header({
+  cartCount,
+  wishlistCount,
+  search,
+  onSearchChange,
+  categories,
+  catalogLoading,
+  catalogError,
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const closeMenu = () => setMenuOpen(false)
+  const [draftSearch, setDraftSearch] = useState(search)
+  const mobileTriggerRef = useRef(null)
+  const catalogTriggerRef = useRef(null)
+  const menuRef = useRef(null)
+
+  const closeMenu = useCallback((restoreFocus = true) => {
+    setMenuOpen(false)
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => {
+        const trigger = window.matchMedia('(max-width: 1023px)').matches
+          ? mobileTriggerRef.current
+          : catalogTriggerRef.current
+        trigger?.focus()
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const focusFirst = () => {
+      const firstFocusable = menuRef.current?.querySelector('a, button')
+      firstFocusable?.focus()
+    }
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeMenu()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusables = [...(menuRef.current?.querySelectorAll('a, button') ?? [])]
+      if (!focusables.length) return
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.requestAnimationFrame(focusFirst)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [closeMenu, menuOpen])
+
+  const submitSearch = (event) => {
+    event.preventDefault()
+    onSearchChange(draftSearch.trim())
+  }
+
+  const realCategories = categories.filter((category) => category.slug)
   return (
     <>
-      <div className="topline">
-        <span>Доставка безкоштовна для замовлень від 1 500 ₴</span>
-        <span>Створено для маленьких ритуалів радості</span>
-      </div>
       <header className="site-header">
-        <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Меню">
-          <Icon name={menuOpen ? 'close' : 'menu'} size={22} />
-        </button>
-        <Brand />
-        <nav className="header-nav">
-          <Link to={catalogPath()}>Магазин</Link>
-          <Link to={catalogPath('podarunky')}>Подарунки</Link>
-          <Link to="/about">Про Velora</Link>
+        <div className="header-row">
+          <button
+            className="mobile-menu"
+            ref={mobileTriggerRef}
+            onClick={() => setMenuOpen((current) => !current)}
+            aria-label={menuOpen ? 'Закрити меню' : 'Відкрити меню'}
+            aria-expanded={menuOpen}
+            aria-controls="catalog-menu"
+          >
+            <Icon name={menuOpen ? 'close' : 'menu'} size={22} />
+          </button>
+          <Brand />
+          <button
+            className="catalog-trigger"
+            ref={catalogTriggerRef}
+            onClick={() => setMenuOpen((current) => !current)}
+            aria-expanded={menuOpen}
+            aria-controls="catalog-menu"
+          >
+            <Icon name="menu" size={18} />
+            Каталог
+          </button>
+          <form className="search-box" onSubmit={submitSearch} role="search">
+            <label className="visually-hidden" htmlFor="header-search">
+              Пошук товарів
+            </label>
+            <Icon name="search" size={18} />
+            <input
+              id="header-search"
+              value={draftSearch}
+              onChange={(event) => setDraftSearch(event.target.value)}
+              placeholder="Пошук товарів"
+              type="search"
+              autoComplete="off"
+            />
+          </form>
+          <div className="header-actions">
+            <Link className="header-action" to="/wishlist" aria-label="Обране">
+              <Icon name="heart" size={20} />
+              <span>Обране</span>
+              {wishlistCount > 0 && <b>{wishlistCount}</b>}
+            </Link>
+            <Link className="header-action account-action" to="/account" aria-label="Кабінет">
+              <Icon name="user" size={20} />
+              <span>Кабінет</span>
+            </Link>
+            <Link className="header-action header-bag" to="/cart" aria-label="Кошик">
+              <Icon name="bag" size={20} />
+              <span>Кошик</span>
+              {cartCount > 0 && <b>{cartCount}</b>}
+            </Link>
+          </div>
+        </div>
+        <nav className="main-nav" aria-label="Інформація про магазин">
+          <Link to="/about">Про магазин</Link>
+          <Link to="/about#delivery">Доставка</Link>
+          <Link to="/about#payment">Оплата</Link>
+          <Link to="/about#contacts">Контакти</Link>
+          <Link className="main-nav-cta" to={catalogPath()}>
+            Почати покупки <Icon name="arrow" size={16} />
+          </Link>
         </nav>
-        <label className="search-box">
+        <form className="mobile-search-box" onSubmit={submitSearch} role="search">
+          <label className="visually-hidden" htmlFor="mobile-header-search">
+            Пошук товарів
+          </label>
           <Icon name="search" size={18} />
           <input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Пошук у Velora"
+            id="mobile-header-search"
+            value={draftSearch}
+            onChange={(event) => setDraftSearch(event.target.value)}
+            placeholder="Пошук товарів"
+            type="search"
+            autoComplete="off"
           />
-        </label>
-        <div className="header-actions">
-          <Link to="/account" aria-label="Особистий кабінет">
-            <Icon name="user" size={21} />
-          </Link>
-          <Link className="header-bag" to="/cart" aria-label="Кошик">
-            <Icon name="bag" size={21} />
-            {cartCount > 0 && <b>{cartCount}</b>}
-          </Link>
-        </div>
+        </form>
       </header>
       {menuOpen && (
-        <nav className="mobile-panel">
-          <Link onClick={closeMenu} to={catalogPath()}>
-            Магазин
-          </Link>
-          <Link onClick={closeMenu} to={catalogPath('podarunky')}>
-            Подарунки
-          </Link>
-          <Link onClick={closeMenu} to="/about">
-            Про Velora
-          </Link>
-          <Link onClick={closeMenu} to="/account">
-            Особистий кабінет
-          </Link>
-        </nav>
+        <div className="catalog-menu-layer" onMouseDown={() => closeMenu(false)}>
+          <div
+            className="catalog-menu"
+            id="catalog-menu"
+            ref={menuRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Каталог товарів"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="catalog-menu-heading">
+              <h2>Каталог</h2>
+              <button onClick={() => closeMenu()} aria-label="Закрити каталог">
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+            {catalogLoading ? (
+              <p className="menu-status">Завантаження категорій…</p>
+            ) : catalogError ? (
+              <p className="menu-status" role="alert">
+                Не вдалося завантажити категорії.
+              </p>
+            ) : (
+              <nav className="catalog-menu-links" aria-label="Категорії">
+                <Link onClick={() => closeMenu(false)} to={catalogPath()}>
+                  Усі товари
+                </Link>
+                {realCategories.map((category) => (
+                  <Link
+                    onClick={() => closeMenu(false)}
+                    to={catalogPath(category.slug)}
+                    key={category.slug}
+                  >
+                    {category.name}
+                  </Link>
+                ))}
+                <Link onClick={() => closeMenu(false)} to="/account">
+                  Кабінет
+                </Link>
+                <Link onClick={() => closeMenu(false)} to="/about">
+                  Інформація про магазин
+                </Link>
+              </nav>
+            )}
+          </div>
+        </div>
       )}
     </>
   )
@@ -130,18 +265,18 @@ export function Header({ cartCount, search, onSearchChange }) {
 
 export function CategoryRail({ categories, activeSlug }) {
   return (
-    <div className="category-rail">
+    <nav className="category-rail" aria-label="Категорії товарів">
       {categories.map((category) => (
         <Link
           className={activeSlug === category.slug ? 'active' : ''}
           to={catalogPath(category.slug)}
           key={category.slug ?? 'all'}
+          aria-current={activeSlug === category.slug ? 'page' : undefined}
         >
-          <CategoryIcon name={category.icon} size={19} />
           <span>{category.name}</span>
         </Link>
       ))}
-    </div>
+    </nav>
   )
 }
 
@@ -152,6 +287,7 @@ export function Summary({
   onClick = undefined,
   children = null,
   submit = false,
+  disabled = false,
   to = undefined,
 }) {
   return (
@@ -175,51 +311,49 @@ export function Summary({
           {button} <Icon name="arrow" size={17} />
         </Link>
       ) : (
-        <button className="button-dark full" type={submit ? 'submit' : 'button'} onClick={onClick}>
+        <button
+          className="button-dark full"
+          type={submit ? 'submit' : 'button'}
+          onClick={onClick}
+          disabled={disabled}
+        >
           {button} <Icon name="arrow" size={17} />
         </button>
       )}
-      <p className="summary-note">
-        <Icon name="shield" size={16} /> Ваші дані потрібні лише для оформлення замовлення.
-      </p>
     </aside>
   )
 }
 
 export function Footer() {
   return (
-    <footer>
-      <div className="footer-top">
-        <div>
+    <footer className="site-footer">
+      <div className="footer-top main-content">
+        <div className="footer-brand-block">
           <Brand footer />
-          <p>Речі для ваших тихих, красивих моментів.</p>
+          <p>Онлайн-магазин товарів для дому, догляду та особистого стилю.</p>
         </div>
-        <div>
+        <nav className="footer-group" aria-label="Магазин">
           <h3>Магазин</h3>
           <Link to={catalogPath()}>Усі товари</Link>
           <Link to={catalogPath('podarunky')}>Подарункові набори</Link>
-          <Link to="/account">Особистий кабінет</Link>
-        </div>
-        <div>
-          <h3>Допомога</h3>
-          <Link to="/about">Про Velora</Link>
+        </nav>
+        <nav className="footer-group" aria-label="Покупцю">
+          <h3>Покупцю</h3>
+          <Link to="/wishlist">Обране</Link>
           <Link to="/cart">Кошик</Link>
-          <span>hello@velora.ua</span>
-        </div>
-        <div className="newsletter">
-          <h3>Трохи натхнення</h3>
-          <p>Лише красиві новини та особливі пропозиції.</p>
-          <div>
-            <input placeholder="Ваш email" aria-label="Email для новин" />
-            <button aria-label="Підписатися">
-              <Icon name="arrow" size={17} />
-            </button>
-          </div>
-        </div>
+          <Link to="/account">Особистий кабінет</Link>
+        </nav>
+        <nav className="footer-group" aria-label="Інформація">
+          <h3>Інформація</h3>
+          <Link to="/about">Про магазин</Link>
+          <Link to="/about#delivery">Доставка</Link>
+          <Link to="/about#payment">Оплата</Link>
+          <Link to="/about#contacts">Контакти</Link>
+        </nav>
       </div>
-      <div className="footer-bottom">
+      <div className="footer-bottom main-content">
         <span>© 2026 Velora. Усі права захищені.</span>
-        <span>Створено з турботою в Україні</span>
+        <span>Замовлення онлайн</span>
       </div>
     </footer>
   )

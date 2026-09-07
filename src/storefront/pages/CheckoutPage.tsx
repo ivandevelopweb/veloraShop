@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatPrice } from '../../shared/lib/format'
-import { Icon } from '../../shared/ui/Icon'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { Summary } from '../components/StorefrontComponents'
 import { paymentResultPath } from '../routing/paths'
 
@@ -60,7 +60,7 @@ export function Checkout({ cart, onComplete }) {
         <h1>Переходимо до LiqPay</h1>
         <p>
           Замовлення <b>№ {checkout.order.code}</b> очікує на оплату. Дані картки вводяться лише
-          на захищеній сторінці LiqPay Sandbox — гроші не списуються.
+          на захищеній сторінці LiqPay.
         </p>
         <form action="https://www.liqpay.ua/api/3/checkout" method="post" ref={paymentFormRef}>
           <input type="hidden" name="data" value={checkout.checkout.data} />
@@ -92,19 +92,19 @@ export function Checkout({ cart, onComplete }) {
             <div className="form-grid">
               <label>
                 Ім’я
-                <input required name="firstName" placeholder="Ваше ім’я" />
+                <input required name="firstName" autoComplete="given-name" placeholder="Ваше ім’я" />
               </label>
               <label>
                 Прізвище
-                <input required name="lastName" placeholder="Ваше прізвище" />
+                <input required name="lastName" autoComplete="family-name" placeholder="Ваше прізвище" />
               </label>
               <label>
                 Телефон
-                <input required name="phone" type="tel" placeholder="+380" />
+                <input required name="phone" type="tel" autoComplete="tel" placeholder="+380" />
               </label>
               <label>
                 Email
-                <input required name="email" type="email" placeholder="name@email.com" />
+                <input required name="email" type="email" autoComplete="email" placeholder="name@email.com" />
               </label>
             </div>
           </section>
@@ -133,11 +133,16 @@ export function Checkout({ cart, onComplete }) {
             <div className="form-grid address-fields">
               <label>
                 Місто
-                <input required name="city" placeholder="Київ" />
+                <input required name="city" autoComplete="address-level2" placeholder="Київ" />
               </label>
               <label>
-                Відділення
-                <input required name="branch" placeholder="№ або адреса" />
+                {delivery === 'Нова пошта' ? 'Відділення' : 'Адреса доставки'}
+                <input
+                  required
+                  name="branch"
+                  autoComplete="street-address"
+                  placeholder={delivery === 'Нова пошта' ? '№ або адреса' : 'Вулиця, будинок, квартира'}
+                />
               </label>
             </div>
           </section>
@@ -147,7 +152,7 @@ export function Checkout({ cart, onComplete }) {
               <Icon name="shield" size={20} />
               <span>
                 <b>Безпечна оплата через LiqPay</b>
-                <small>Sandbox: карткові дані не потрапляють до Velora.</small>
+                <small>Карткові дані вводяться на захищеній сторінці LiqPay.</small>
               </span>
             </div>
           </section>
@@ -157,6 +162,7 @@ export function Checkout({ cart, onComplete }) {
           delivery={deliveryCost}
           button={isSubmitting ? 'Готуємо захищену оплату…' : 'Підтвердити й оплатити'}
           submit
+          disabled={isSubmitting}
         >
           <div className="checkout-items">
             {cart.map((item) => (

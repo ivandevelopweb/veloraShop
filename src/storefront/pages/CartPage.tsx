@@ -1,8 +1,8 @@
 import { formatPrice, formatStock } from '../../shared/lib/format'
 import { Link } from 'react-router-dom'
-import { Icon } from '../../shared/ui/Icon'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { Summary } from '../components/StorefrontComponents'
-import { catalogPath } from '../routing/paths'
+import { catalogPath, productPath } from '../routing/paths'
 
 const price = formatPrice
 const stockLabel = formatStock
@@ -29,10 +29,18 @@ export function Cart({ cart, onChange }) {
           <section className="cart-list">
             {cart.map((item) => (
               <article className="cart-item" key={item.id}>
-                <img src={item.image} alt={item.name} />
+                <Link className="cart-item-image" to={productPath(item.slug)} aria-label={`Відкрити ${item.name}`}>
+                  {item.image ?? item.images?.[0]?.url ? (
+                    <img src={item.image ?? item.images?.[0]?.url} alt={item.images?.[0]?.altText || item.name} />
+                  ) : (
+                    <span>Фото відсутнє</span>
+                  )}
+                </Link>
                 <div className="cart-item-copy">
                   <p>{item.category}</p>
-                  <h2>{item.name}</h2>
+                  <h2>
+                    <Link to={productPath(item.slug)}>{item.name}</Link>
+                  </h2>
                   <span>{item.subtitle}</span>
                   <small className={item.stock <= 5 ? 'low-stock' : ''}>{stockLabel(item.stock)}</small>
                 </div>
@@ -53,7 +61,7 @@ export function Cart({ cart, onChange }) {
                     <Icon name="plus" size={15} />
                   </button>
                 </div>
-                <strong>{price(item.price * item.quantity)} ₴</strong>
+                <strong className="cart-item-price">{price(item.price * item.quantity)} ₴</strong>
                 <button
                   className="remove"
                   onClick={() => onChange(item.id, 0)}

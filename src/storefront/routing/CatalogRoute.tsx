@@ -41,10 +41,8 @@ export function CatalogRoute({
       sort={filters.sort}
       maxPrice={filters.maxPrice}
       ratingOnly={filters.ratingOnly}
-      onSearchChange={(search) => updateFilters({ search })}
       onSortChange={(sort) => updateFilters({ sort })}
-      onMaxPriceChange={(maxPrice) => updateFilters({ maxPrice })}
-      onRatingOnlyChange={(ratingOnly) => updateFilters({ ratingOnly })}
+      onApplyFilters={(changes) => updateFilters(changes)}
       onResetFilters={() => navigate(catalogPath(activeCategory.slug, defaultCatalogFilters))}
       cart={cart}
       wishlist={wishlist}

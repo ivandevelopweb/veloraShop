@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { catalogPath } from '../routing/paths'
-import { Icon } from '../../shared/ui/Icon'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 
 export function NotFound() {
   return (

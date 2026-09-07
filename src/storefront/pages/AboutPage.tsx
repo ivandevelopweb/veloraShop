@@ -1,32 +1,53 @@
-import { Icon } from '../../shared/ui/Icon'
 import { Link } from 'react-router-dom'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { catalogPath } from '../routing/paths'
-
-const image = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=85`
 
 export function About() {
   return (
     <main className="main-content about-page">
-      <section>
+      <div className="crumbs">
+        <Link to="/">Головна</Link>
+        <Icon name="chevron" size={14} />
+        <span>Інформація</span>
+      </div>
+
+      <section className="about-intro">
         <p className="eyebrow">Про Velora</p>
-        <h1>
-          Для тих, хто обирає <i>відчувати.</i>
-        </h1>
+        <h1>Інтернет-магазин Velora</h1>
         <p>
-          Velora — це уважно зібраний простір красивих речей. Ми віримо, що незначні, на перший
-          погляд, деталі здатні змінити ритм дня і зробити дім ближчим.
+          Velora — український магазин товарів для дому, догляду та особистого стилю з каталогом і
+          цінами в гривнях. Обирайте товари, зберігайте улюблені позиції та оформлюйте замовлення
+          онлайн.
         </p>
         <Link className="button-dark" to={catalogPath()}>
-          Відкрити магазин <Icon name="arrow" size={17} />
+          Відкрити каталог <Icon name="arrow" size={17} />
         </Link>
       </section>
-      <div className="about-visual">
-        <img src={image('photo-1519710887729-027a1c370c30')} alt="Естетичний простір Velora" />
-        <span>
-          Less, but
-          <br />
-          <i>better.</i>
-        </span>
+
+      <div className="about-sections">
+        <section id="delivery" className="about-section">
+          <p className="eyebrow">01</p>
+          <h2>Доставка</h2>
+          <p>
+            У формі оформлення доступні «Нова пошта» — відділення або поштомат — і «Кур’єр Velora»
+            у межах Києва. Доставка безкоштовна для замовлень від 1500 ₴, для замовлень меншої
+            суми — 90 ₴.
+          </p>
+        </section>
+        <section id="payment" className="about-section">
+          <p className="eyebrow">02</p>
+          <h2>Оплата</h2>
+          <p>
+            Під час оформлення доступна захищена оплата через LiqPay. Після підтвердження замовлення
+            ви перейдете на сторінку платіжного сервісу, а статус оплати буде доступний на сторінці
+            результату.
+          </p>
+        </section>
+        <section id="contacts" className="about-section">
+          <p className="eyebrow">03</p>
+          <h2>Контакти</h2>
+          <p>Служба підтримки Velora допоможе з питаннями щодо товарів, доставки та замовлень.</p>
+        </section>
       </div>
     </main>
   )

@@ -44,6 +44,12 @@ export function Icon({ name, size = 20 }) {
     close: <path d="m6 6 12 12M18 6 6 18" />,
     chevron: <path d="m9 18 6-6-6-6" />,
     check: <path d="m5 12 4.2 4L19 7" />,
+    alert: (
+      <>
+        <path d="M12 4 3.8 19h16.4L12 4Z" />
+        <path d="M12 9v4M12 16.5h.01" />
+      </>
+    ),
     truck: (
       <>
         <path d="M3 6h11v10H3zM14 10h3l3 3v3h-6z" />

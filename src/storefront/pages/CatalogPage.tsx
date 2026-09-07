@@ -1,10 +1,10 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatPrice } from '../../shared/lib/format'
-import { Icon } from '../../shared/ui/Icon'
+import { formatPriceWithCurrency } from '../../shared/lib/format'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { CategoryRail, ProductCard } from '../components/StorefrontComponents'
 
-const price = formatPrice
+const price = formatPriceWithCurrency
 
 export function Catalog({
   products,
@@ -15,37 +15,89 @@ export function Catalog({
   sort,
   maxPrice,
   ratingOnly,
-  onSearchChange,
   onSortChange,
-  onMaxPriceChange,
-  onRatingOnlyChange,
+  onApplyFilters,
   onResetFilters,
   cart,
   wishlist,
   onAdd,
   onWish,
 }) {
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    return products
-      .filter(
-        (item) =>
-          (activeCategory === 'Усе' || item.category === activeCategory) &&
-          item.price <= maxPrice &&
-          (!ratingOnly || item.rating >= 4.8) &&
-          (!query ||
-            `${item.name} ${item.subtitle} ${item.category}`.toLowerCase().includes(query)),
-      )
-      .sort((a, b) =>
-        sort === 'low'
-          ? a.price - b.price
-          : sort === 'high'
-            ? b.price - a.price
-            : sort === 'rating'
-              ? b.rating - a.rating
-              : b.reviews - a.reviews,
-      )
-  }, [activeCategory, maxPrice, products, ratingOnly, search, sort])
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [draftMaxPrice, setDraftMaxPrice] = useState(maxPrice)
+  const [draftRatingOnly, setDraftRatingOnly] = useState(ratingOnly)
+  const filterOpenButtonRef = useRef<HTMLButtonElement>(null)
+  const filterCloseRef = useRef<HTMLButtonElement>(null)
+  const query = search.trim().toLocaleLowerCase('uk-UA')
+  const filtered = useMemo(
+    () =>
+      products
+        .filter(
+          (item) =>
+            (activeCategory === 'Усе' || item.category === activeCategory) &&
+            item.price <= maxPrice &&
+            (!ratingOnly || item.rating >= 4.8) &&
+            (!query ||
+              `${item.name} ${item.shortDescription} ${item.category}`
+                .toLocaleLowerCase('uk-UA')
+                .includes(query)),
+        )
+        .sort((a, b) =>
+          sort === 'low'
+            ? a.price - b.price
+            : sort === 'high'
+              ? b.price - a.price
+              : sort === 'rating'
+                ? b.rating - a.rating || a.id - b.id
+                : b.reviewCount - a.reviewCount || a.id - b.id,
+        ),
+    [activeCategory, maxPrice, products, query, ratingOnly, sort],
+  )
+
+  const openFilters = () => {
+    setDraftMaxPrice(maxPrice)
+    setDraftRatingOnly(ratingOnly)
+    setFiltersOpen(true)
+  }
+
+  useEffect(() => {
+    if (!filtersOpen) return undefined
+
+    const frame = window.requestAnimationFrame(() => filterCloseRef.current?.focus())
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setFiltersOpen(false)
+      window.requestAnimationFrame(() => filterOpenButtonRef.current?.focus())
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [filtersOpen])
+
+  const closeFilters = () => {
+    setFiltersOpen(false)
+    window.requestAnimationFrame(() => filterOpenButtonRef.current?.focus())
+  }
+
+  const handleMaxPriceChange = (value) => {
+    if (filtersOpen) setDraftMaxPrice(value)
+    else onApplyFilters({ maxPrice: value })
+  }
+
+  const handleRatingChange = (value) => {
+    if (filtersOpen) setDraftRatingOnly(value)
+    else onApplyFilters({ ratingOnly: value })
+  }
+
+  const applyFilters = () => {
+    onApplyFilters({ maxPrice: draftMaxPrice, ratingOnly: draftRatingOnly })
+    closeFilters()
+  }
+
   return (
     <main className="catalog-page main-content">
       <div className="crumbs">
@@ -59,64 +111,86 @@ export function Catalog({
           </>
         )}
       </div>
+
       <div className="catalog-title">
         <div>
-          <p className="eyebrow">Колекція Velora</p>
           <h1>{activeCategory === 'Усе' ? 'Усі товари' : activeCategory}</h1>
-          <p>{filtered.length} товарів, відібраних для вашого простору й ритму.</p>
+          <p className="catalog-count">
+            {filtered.length} {filtered.length === 1 ? 'товар' : 'товарів'}
+          </p>
+          {search && <p className="catalog-query">Результати для «{search}»</p>}
         </div>
-        <label className="catalog-search">
-          <Icon name="search" size={18} />
-          <input
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Шукати товари"
-          />
-        </label>
+        <button
+          className="filter-open-button"
+          ref={filterOpenButtonRef}
+          onClick={openFilters}
+          aria-expanded={filtersOpen}
+          aria-controls="catalog-filters"
+        >
+          <Icon name="menu" size={18} />
+          Фільтри
+        </button>
       </div>
+
       <CategoryRail categories={categories} activeSlug={activeCategorySlug} />
+
       <div className="catalog-layout">
-        <aside className="filters">
-          <div className="filter-heading">
-            <span>Фільтри</span>
-            <button
-              onClick={() => {
-                onResetFilters()
-              }}
-            >
-              Скинути
-            </button>
-          </div>
-          <div className="filter-group">
-            <label>
-              Ціна до <b>{price(maxPrice)} ₴</b>
+        <aside
+          className={`filters ${filtersOpen ? 'is-open' : ''}`}
+          id="catalog-filters"
+          aria-label="Фільтри каталогу"
+        >
+          <div className="filter-sheet-card">
+            <div className="filter-heading">
+              <h2>Фільтри</h2>
+              <button onClick={() => onResetFilters()}>Скинути</button>
+              <button
+                className="filter-close"
+                ref={filterCloseRef}
+                onClick={closeFilters}
+                aria-label="Закрити фільтри"
+              >
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+            <div className="filter-group">
+              <label htmlFor="catalog-max-price">
+                Ціна до <b>{price(filtersOpen ? draftMaxPrice : maxPrice)}</b>
+              </label>
+              <input
+                id="catalog-max-price"
+                type="range"
+                min="300"
+                max="4000"
+                step="100"
+                value={filtersOpen ? draftMaxPrice : maxPrice}
+                onChange={(event) => handleMaxPriceChange(Number(event.target.value))}
+              />
+              <div className="range-labels">
+                <span>300 ₴</span>
+                <span>4 000 ₴</span>
+              </div>
+            </div>
+            <label className="check-filter">
+              <input
+                type="checkbox"
+                checked={filtersOpen ? draftRatingOnly : ratingOnly}
+                onChange={(event) => handleRatingChange(event.target.checked)}
+              />
+              <span>Рейтинг 4.8 і вище</span>
             </label>
-            <input
-              type="range"
-              min="300"
-              max="4000"
-              step="100"
-              value={maxPrice}
-              onChange={(event) => onMaxPriceChange(Number(event.target.value))}
-            />
-            <div className="range-labels">
-              <span>300 ₴</span>
-              <span>4 000 ₴</span>
+            <div className="filter-sheet-actions">
+              <button className="button-dark" onClick={applyFilters}>
+                Показати товари
+              </button>
+              <button className="text-link" onClick={closeFilters}>
+                Скасувати
+              </button>
             </div>
           </div>
-          <label className="check-filter">
-            <input
-              type="checkbox"
-              checked={ratingOnly}
-              onChange={(event) => onRatingOnlyChange(event.target.checked)}
-            />
-            <span>Рейтинг 4.8 і вище</span>
-          </label>
-          <div className="filter-quote">
-            «Ми обираємо не більше — ми обираємо краще»<small>— філософія Velora</small>
-          </div>
         </aside>
-        <section className="catalog-results">
+
+        <section className="catalog-results" aria-live="polite">
           <div className="catalog-toolbar">
             <span>Показано {filtered.length} товарів</span>
             <label>
@@ -144,16 +218,11 @@ export function Catalog({
             </div>
           ) : (
             <div className="empty-state">
-              <Icon name="search" size={34} />
-              <h2>Нічого не знайшли</h2>
+              <Icon name="search" size={28} />
+              <h2>Нічого не знайдено</h2>
               <p>Спробуйте змінити запит або скинути фільтри.</p>
-              <button
-                className="button-dark"
-                onClick={() => {
-                  onResetFilters()
-                }}
-              >
-                Показати все
+              <button className="button-dark" onClick={() => onResetFilters()}>
+                Показати всі товари
               </button>
             </div>
           )}

@@ -1,48 +1,49 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatPrice, formatStock } from '../../shared/lib/format'
-import { Icon } from '../../shared/ui/Icon'
+import { formatPriceWithCurrency, formatStock } from '../../shared/lib/format'
+import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { ProductCard } from '../components/StorefrontComponents'
 import { catalogPath } from '../routing/paths'
 
-const price = formatPrice
+const price = formatPriceWithCurrency
 const stockLabel = formatStock
 
+function galleryFor(item) {
+  const images = [...(item.images ?? [])]
+    .filter((image) => image.url)
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+
+  if (images.length) return images
+  return item.image
+    ? [{ id: 'product-image', url: item.image, altText: item.name, sortOrder: 0 }]
+    : []
+}
+
 export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
-  const [tab, setTab] = useState('Опис')
-  const [tone, setTone] = useState(0)
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const galleryImages = galleryFor(item)
+  const activeImage = galleryImages[activeImageIndex] ?? galleryImages[0]
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
   const atStockLimit = inCart >= item.stock
   const recommendations = products
     .filter((product) => product.category === item.category && product.id !== item.id)
     .slice(0, 4)
+
   return (
     <main className="main-content product-page">
       <div className="crumbs">
         <Link to={catalogPath()}>Магазин</Link>
         <Icon name="chevron" size={14} />
-        <Link to={catalogPath(item.categorySlug)}>{item.category}</Link>
-        <Icon name="chevron" size={14} />
+        {item.categorySlug && (
+          <>
+            <Link to={catalogPath(item.categorySlug)}>{item.category}</Link>
+            <Icon name="chevron" size={14} />
+          </>
+        )}
         <span>{item.name}</span>
       </div>
+
       <section className="product-layout">
-        <div className="product-gallery">
-          <div className="gallery-image" style={{ background: item.tones[tone] }}>
-            {item.badge && <span>{item.badge}</span>}
-            <img src={item.image} alt={item.name} />
-          </div>
-          <div className="gallery-thumbs">
-            <button className="active">
-              <img src={item.image} alt="" />
-            </button>
-            <button onClick={() => setTone(0)}>
-              <span style={{ background: item.tones[0] }} />
-            </button>
-            <button onClick={() => setTone(1)}>
-              <span style={{ background: item.tones[1] }} />
-            </button>
-          </div>
-        </div>
         <div className="product-detail">
           <p className="eyebrow">{item.category}</p>
           <div className="product-title-row">
@@ -50,39 +51,31 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
             <button
               className={`wish-button standalone ${wishlist.includes(item.id) ? 'active' : ''}`}
               onClick={() => onWish(item.id)}
+              aria-label={
+                wishlist.includes(item.id)
+                  ? `Прибрати ${item.name} з обраного`
+                  : `Додати ${item.name} до обраного`
+              }
+              aria-pressed={wishlist.includes(item.id)}
             >
-              <Icon name="heart" size={21} />
+              <Icon name={wishlist.includes(item.id) ? 'heart-filled' : 'heart'} size={20} />
             </button>
           </div>
-          <p className="detail-subtitle">{item.subtitle}</p>
-          <div className="detail-rating">
-            <span>★ {item.rating.toFixed(1)}</span>
-            <span>{item.reviews} відгуків</span>
+          <p className="detail-subtitle">{item.shortDescription}</p>
+          <p className="product-code">Код товару: {item.id}</p>
+          <div className="detail-rating" aria-label={`Рейтинг ${item.rating.toFixed(1)} з 5`}>
+            <span>
+              <Icon name="star" size={16} /> {item.rating.toFixed(1)}
+            </span>
+            <span>· {item.reviewCount} оцінок</span>
           </div>
           <div className="detail-price">
-            {item.oldPrice && <s>{price(item.oldPrice)} ₴</s>}
-            <strong>{price(item.price)} ₴</strong>
+            {item.oldPrice !== null && item.oldPrice > item.price && <s>{price(item.oldPrice)}</s>}
+            <strong>{price(item.price)}</strong>
           </div>
           <p className={`detail-stock ${item.stock <= 5 ? 'low-stock' : ''}`}>
             {stockLabel(item.stock)}
           </p>
-          <div className="tone-picker">
-            <span>
-              Відтінок: <b>{tone ? 'Темний' : 'Світлий'}</b>
-            </span>
-            <div>
-              <button
-                className={!tone ? 'selected' : ''}
-                onClick={() => setTone(0)}
-                style={{ background: item.tones[0] }}
-              />
-              <button
-                className={tone ? 'selected' : ''}
-                onClick={() => setTone(1)}
-                style={{ background: item.tones[1] }}
-              />
-            </div>
-          </div>
           <button
             className="add-large"
             onClick={() => onAdd(item)}
@@ -92,7 +85,7 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
             {inCart ? (
               <>
                 <Icon name="check" />
-                {atStockLimit ? ` У кошику: ${inCart} — увесь залишок` : ` У кошику: ${inCart}`}
+                {atStockLimit ? `У кошику: ${inCart} — увесь залишок` : `У кошику: ${inCart}`}
               </>
             ) : (
               <>
@@ -100,62 +93,65 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
               </>
             )}
           </button>
-          <div className="detail-perks">
-            <div>
-              <Icon name="truck" />
-              <span>
-                <b>Безкоштовна доставка</b> від 1 500 ₴
-              </span>
-            </div>
-            <div>
-              <Icon name="shield" />
-              <span>
-                <b>Легке повернення</b> протягом 14 днів
-              </span>
-            </div>
+        </div>
+
+        <div className="product-gallery">
+          <div className="gallery-image">
+            {item.badge && <span className="product-badge">{item.badge}</span>}
+            {activeImage ? (
+              <img src={activeImage.url} alt={activeImage.altText || item.name} />
+            ) : (
+              <span className="product-image-placeholder">Фото відсутнє</span>
+            )}
           </div>
+          {galleryImages.length > 1 && (
+            <div className="gallery-thumbs" aria-label="Фотографії товару">
+              {galleryImages.map((image, index) => (
+                <button
+                  className={index === activeImageIndex ? 'active' : ''}
+                  key={image.id}
+                  onClick={() => setActiveImageIndex(index)}
+                  aria-label={`Показати фото ${index + 1}`}
+                  aria-pressed={index === activeImageIndex}
+                >
+                  <img src={image.url} alt="" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
-      <section className="product-tabs">
-        <div>
-          {['Опис', 'Деталі', 'Доставка'].map((label) => (
-            <button
-              className={tab === label ? 'active' : ''}
-              key={label}
-              onClick={() => setTab(label)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <p>
-          {tab === 'Опис'
-            ? `${item.name} — уважно відібраний предмет для тихої, красивої повсякденності. Продумана фактура, стриманий силует і деталі, до яких хочеться повертатися.`
-            : tab === 'Деталі'
-              ? 'Склад і характеристики зазначені для демонстрації. Перед запуском магазину вони будуть заповнюватися з каталогу.'
-              : 'Відправляємо замовлення Новою поштою по Україні. Термін та вартість доставки будуть показані на етапі оформлення.'}
-        </p>
+
+      <section className="product-description" aria-labelledby="product-description-title">
+        <h2 id="product-description-title">Опис товару</h2>
+        <p>{item.description || item.shortDescription}</p>
       </section>
-      <section className="recommendations">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Може сподобатися</p>
-            <h2>Доповніть свій вибір</h2>
+
+      {recommendations.length > 0 && (
+        <section className="recommendations">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Із цієї категорії</p>
+              <h2>Вам також може сподобатися</h2>
+            </div>
+            <Link className="text-link" to={catalogPath(item.categorySlug)}>
+              Усі товари
+            </Link>
           </div>
-        </div>
-        <div className="featured-grid">
-          {recommendations.map((product) => (
-            <ProductCard
-              key={product.id}
-              item={product}
-              cart={cart}
-              isWishlisted={wishlist.includes(product.id)}
-              onAdd={onAdd}
-              onWish={onWish}
-            />
-          ))}
-        </div>
-      </section>
+          <div className="featured-grid">
+            {recommendations.map((product) => (
+              <ProductCard
+                key={product.id}
+                item={product}
+                cart={cart}
+                isWishlisted={wishlist.includes(product.id)}
+                onAdd={onAdd}
+                onWish={onWish}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   )
 }

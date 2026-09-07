@@ -1,0 +1,58 @@
+import {
+  IconAlertTriangle,
+  IconArrowRight,
+  IconBolt,
+  IconBottle,
+  IconCheck,
+  IconChevronRight,
+  IconDiamond,
+  IconFlower,
+  IconGift,
+  IconHeart,
+  IconHeartFilled,
+  IconHome,
+  IconMenu2,
+  IconMinus,
+  IconPlus,
+  IconSearch,
+  IconShield,
+  IconShoppingBag,
+  IconSparkles,
+  IconStar,
+  IconSun,
+  IconTruck,
+  IconUser,
+  IconX,
+} from '@tabler/icons-react'
+
+const icons = {
+  alert: IconAlertTriangle,
+  arrow: IconArrowRight,
+  bolt: IconBolt,
+  bottle: IconBottle,
+  check: IconCheck,
+  chevron: IconChevronRight,
+  close: IconX,
+  flower: IconFlower,
+  gift: IconGift,
+  gem: IconDiamond,
+  home: IconHome,
+  heart: IconHeart,
+  'heart-filled': IconHeartFilled,
+  menu: IconMenu2,
+  minus: IconMinus,
+  plus: IconPlus,
+  search: IconSearch,
+  shield: IconShield,
+  sparkles: IconSparkles,
+  star: IconStar,
+  sun: IconSun,
+  truck: IconTruck,
+  user: IconUser,
+  bag: IconShoppingBag,
+} as const
+
+export function StorefrontIcon({ name, size = 20 }: { name: string; size?: number }) {
+  const Glyph = icons[name as keyof typeof icons] ?? IconSparkles
+  return <Glyph size={size} stroke={1.75} aria-hidden="true" />
+}
