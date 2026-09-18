@@ -2,6 +2,8 @@ import type {
   AdminOrder,
   AdminOrderDetails,
   AdminProduct,
+  AssistantHistoryEntry,
+  AssistantMessageResponse,
   CartItem,
   Category,
   CheckoutDetails,
@@ -127,6 +129,18 @@ export const api = {
   getProduct: (slug: string) =>
     request<{ product: StorefrontProduct }>('GET', `/api/products/${encodeURIComponent(slug)}`),
   getCategories: () => request<{ categories: Category[] }>('GET', '/api/categories'),
+  sendAssistantMessage: (payload: {
+    message: string
+    history: AssistantHistoryEntry[]
+    clientId: string
+    sessionId: string
+  }) => request<AssistantMessageResponse>('POST', '/api/assistant/message', payload),
+  submitAssistantFeedback: (payload: {
+    interactionId: string
+    clientId: string
+    value: 'like' | 'dislike'
+  }) =>
+    request<{ feedback: 'like' | 'dislike' }>('POST', '/api/assistant/feedback', payload),
   admin: {
     dashboard: () =>
       request<{

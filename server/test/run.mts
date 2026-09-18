@@ -132,6 +132,9 @@ try {
   await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/integration.test.mts'], {
     env: environment,
   })
+  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/assistant.integration.test.mts'], {
+    env: environment,
+  })
 } finally {
   if (started) await run('docker', ['rm', '--force', container]).catch(() => undefined)
 }

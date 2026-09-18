@@ -9,6 +9,7 @@ import { ordersRouter } from './routes/orders.js'
 import { paymentsRouter } from './routes/payments.js'
 import { productsRouter } from './routes/products.js'
 import { adminRouter } from './routes/admin.js'
+import { assistantRouter } from './routes/assistant.js'
 import { config } from './config.js'
 import { errorHandler, notFound } from './errors.js'
 import { issueCsrf } from './security.js'
@@ -70,6 +71,7 @@ app.use(
 app.use('/api/payments', paymentsRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/categories', categoriesRouter)
+app.use('/api/assistant', assistantRouter)
 app.use('/api/admin', adminRouter)
 app.use(notFound)
 app.use(errorHandler)

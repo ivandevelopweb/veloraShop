@@ -10,6 +10,7 @@ import AdminApp from '../../admin/AdminApp'
 import type { CheckoutDetails, Order, User } from '../../api'
 import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { Footer, Header } from '../components/StorefrontComponents'
+import { AssistantWidget } from '../components/AssistantWidget'
 import type { ToastState } from '../hooks/useToast'
 import type { DisplayCategory, DisplayProduct } from '../model/displayProduct'
 import type { DisplayCartItem } from '../model/cart'
@@ -268,6 +269,7 @@ function StorefrontRoutes({
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
+      <AssistantWidget />
       {toast && (
         <div
           className={`toast toast-${toast.kind}`}

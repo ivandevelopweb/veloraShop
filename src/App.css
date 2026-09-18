@@ -3114,3 +3114,365 @@
     padding: 32px 16px;
   }
 }
+
+/* Storefront AI assistant: compact, readable support surface. */
+.app-shell .assistant-widget {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.app-shell .assistant-widget > * {
+  pointer-events: auto;
+}
+
+.app-shell .assistant-panel {
+  width: min(390px, calc(100vw - 32px));
+  height: min(650px, calc(100vh - 112px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  border: 1px solid var(--velora-line);
+  border-radius: 8px;
+  background: var(--velora-bg);
+  box-shadow: 0 16px 48px rgb(28 48 72 / 18%);
+}
+
+.app-shell .assistant-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--velora-line);
+  background: var(--velora-surface);
+}
+
+.app-shell .assistant-panel-header .eyebrow {
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.app-shell .assistant-panel-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.app-shell .assistant-close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--velora-radius-control);
+  color: var(--velora-muted);
+}
+
+.app-shell .assistant-close:hover {
+  background: var(--velora-bg);
+  color: var(--velora-text);
+}
+
+.app-shell .assistant-messages {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  overflow-y: auto;
+  padding: 18px 14px;
+  background: var(--velora-bg);
+}
+
+.app-shell .assistant-message {
+  display: grid;
+  gap: 4px;
+  max-width: 94%;
+}
+
+.app-shell .assistant-message-user {
+  justify-self: end;
+}
+
+.app-shell .assistant-message-bubble {
+  padding: 11px 13px;
+  border: 1px solid var(--velora-line);
+  border-radius: 8px 8px 8px 2px;
+  background: var(--velora-surface);
+  color: var(--velora-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-shell .assistant-message-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .assistant-message-user .assistant-message-bubble {
+  border-color: var(--velora-primary);
+  border-radius: 8px 8px 2px 8px;
+  background: var(--velora-primary);
+  color: #ffffff;
+}
+
+.app-shell .assistant-products {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.app-shell .assistant-product {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  padding: 7px;
+  border: 1px solid var(--velora-line);
+  border-radius: 5px;
+  background: var(--velora-bg);
+  color: var(--velora-text);
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.app-shell .assistant-product:hover {
+  border-color: var(--velora-primary);
+  background: var(--velora-selected);
+}
+
+.app-shell .assistant-product-image {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--velora-image-surface);
+  color: var(--velora-primary);
+}
+
+.app-shell .assistant-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-shell .assistant-product-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.app-shell .assistant-product-copy strong,
+.app-shell .assistant-product-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .assistant-product-copy strong {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.app-shell .assistant-product-copy small {
+  color: var(--velora-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.app-shell .assistant-product-copy b {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+.app-shell .assistant-product > svg {
+  color: var(--velora-muted);
+}
+
+.app-shell .assistant-feedback {
+  display: flex;
+  gap: 2px;
+  padding-left: 4px;
+}
+
+.app-shell .assistant-feedback button {
+  width: 28px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--velora-radius-control);
+  color: var(--velora-muted);
+}
+
+.app-shell .assistant-feedback button:hover:not(:disabled),
+.app-shell .assistant-feedback button.active {
+  background: var(--velora-selected);
+  color: var(--velora-primary);
+}
+
+.app-shell .assistant-feedback button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.app-shell .assistant-loading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--velora-muted);
+}
+
+.app-shell .assistant-loading span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--velora-primary);
+  animation: assistant-pulse 1.1s ease-in-out infinite;
+}
+
+.app-shell .assistant-loading span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.app-shell .assistant-loading span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.app-shell .assistant-loading em {
+  margin-left: 4px;
+  font-style: normal;
+  font-size: 12px;
+}
+
+@keyframes assistant-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.app-shell .assistant-error {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid #f2d4d8;
+  background: #fff7f7;
+  color: var(--velora-danger);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.app-shell .assistant-composer {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--velora-line);
+  background: var(--velora-bg);
+}
+
+.app-shell .assistant-composer textarea {
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+  padding: 9px 10px;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-bg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-shell .assistant-composer textarea:focus {
+  border-color: var(--velora-primary);
+  outline: 2px solid rgb(36 91 158 / 18%);
+}
+
+.app-shell .assistant-composer-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--velora-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.app-shell .assistant-composer-footer .near-limit {
+  color: var(--velora-danger);
+}
+
+.app-shell .assistant-composer-footer small {
+  margin-left: auto;
+  color: var(--velora-muted);
+}
+
+.app-shell .assistant-send {
+  width: 34px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-primary);
+  color: #ffffff;
+}
+
+.app-shell .assistant-send:hover:not(:disabled) {
+  background: var(--velora-primary-hover);
+}
+
+.app-shell .assistant-send:disabled {
+  opacity: 0.45;
+}
+
+.app-shell .assistant-launcher {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--velora-primary);
+  border-radius: 22px;
+  background: var(--velora-primary);
+  color: #ffffff;
+  box-shadow: 0 7px 20px rgb(36 91 158 / 24%);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.app-shell .assistant-launcher:hover {
+  background: var(--velora-primary-hover);
+  border-color: var(--velora-primary-hover);
+}
+
+@media (max-width: 767px) {
+  .app-shell .assistant-widget {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+  }
+
+  .app-shell .assistant-panel {
+    width: 100%;
+    height: min(620px, calc(100vh - 88px));
+  }
+
+  .app-shell .assistant-launcher {
+    justify-self: end;
+  }
+}

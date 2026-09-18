@@ -51,6 +51,17 @@ const rawConfig = z
     ),
     PAYMENT_RESERVATION_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
     PAYMENT_RECONCILIATION_GRACE_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+    GEMINI_API_KEY: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).optional(),
+    ),
+    GEMINI_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .default('gemini-3.1-flash-lite'),
+    GEMINI_TIMEOUT_MS: z.coerce.number().int().min(2_000).max(60_000).default(12_000),
   })
   .refine(
     (value) => Boolean(value.ADMIN_EMAIL) === Boolean(value.ADMIN_PASSWORD),
@@ -158,4 +169,9 @@ export const config = {
       : undefined,
   paymentReservationMinutes: rawConfig.PAYMENT_RESERVATION_MINUTES,
   paymentReconciliationGraceMinutes: rawConfig.PAYMENT_RECONCILIATION_GRACE_MINUTES,
+  gemini: {
+    apiKey: rawConfig.GEMINI_API_KEY,
+    model: rawConfig.GEMINI_MODEL,
+    timeoutMs: rawConfig.GEMINI_TIMEOUT_MS,
+  },
 }

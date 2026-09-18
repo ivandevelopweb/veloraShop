@@ -152,3 +152,30 @@ export type CheckoutDetails = {
   branch: string
   deliveryMethod: 'nova_poshta' | 'velora_courier'
 }
+
+export type AssistantHistoryEntry = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export type AssistantProduct = {
+  id: number
+  slug: string
+  name: string
+  shortDescription: string
+  price: number
+  oldPrice: number | null
+  badge: string
+  rating: number
+  reviewCount: number
+  stock: number
+  category: string | null
+  image: string | null
+}
+
+export type AssistantMessageResponse = {
+  interactionId: string
+  answer: string
+  products: AssistantProduct[]
+  remainingRequests: number
+}
