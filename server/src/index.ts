@@ -7,8 +7,10 @@ import { runPaymentReconciliationWorker } from './payment-reconciliation.js'
 async function start() {
   const server = createServer(app)
   let reconciliationTimer: NodeJS.Timeout | undefined
-  server.requestTimeout = 15_000
-  server.headersTimeout = 16_000
+  // A product request can make classifier, selection and final-answer calls.
+  // Leave enough time for all three configured provider timeouts to complete.
+  server.requestTimeout = 45_000
+  server.headersTimeout = 50_000
   server.keepAliveTimeout = 5_000
   const host = config.env === 'production' ? '0.0.0.0' : '127.0.0.1'
   server.listen(config.port, host, () => {
@@ -22,7 +24,10 @@ async function start() {
   })
   reconciliationTimer = setInterval(() => {
     void runPaymentReconciliationWorker().catch((error: unknown) => {
-      console.error('Payment reconciliation failed', error instanceof Error ? error.message : 'unknown')
+      console.error(
+        'Payment reconciliation failed',
+        error instanceof Error ? error.message : 'unknown',
+      )
     })
   }, 60_000)
   reconciliationTimer.unref()

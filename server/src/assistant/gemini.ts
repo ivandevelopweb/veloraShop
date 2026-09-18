@@ -104,15 +104,20 @@ export class GeminiHttpProvider implements AssistantAiProvider {
           },
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
-            responseMimeType: 'application/json',
-            responseJsonSchema: schema,
+            responseFormat: {
+              text: {
+                mimeType: 'APPLICATION_JSON',
+                schema,
+              },
+            },
             maxOutputTokens,
             temperature: 0.2,
           },
         }),
       })
 
-      if (!response.ok) throw new AssistantProviderError(`Gemini request failed with ${response.status}`)
+      if (!response.ok)
+        throw new AssistantProviderError(`Gemini request failed with ${response.status}`)
       const payload = geminiResponseEnvelopeSchema.safeParse(await response.json())
       if (!payload.success) throw new AssistantModelOutputError()
       const text = payload.data.candidates[0]?.content.parts

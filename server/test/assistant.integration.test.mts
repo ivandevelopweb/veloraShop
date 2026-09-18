@@ -134,7 +134,9 @@ before(async () => {
 
 after(async () => {
   setAssistantProviderForTests(undefined)
-  await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  )
   await pool.end()
 })
 
@@ -155,7 +157,10 @@ test('assistant classifies, hard-filters candidates, validates IDs, logs and acc
   const mocked = providerFor(
     classifier,
     { productIds: [cheapProductId, expensiveProductId, 999999] },
-    { answer: 'Ось доступний варіант у вашому бюджеті.', productIds: [cheapProductId, expensiveProductId, 999999] },
+    {
+      answer: 'Ось доступний варіант у вашому бюджеті.',
+      productIds: [cheapProductId, expensiveProductId, 999999],
+    },
   )
   setAssistantProviderForTests(mocked.provider)
 
@@ -180,7 +185,10 @@ test('assistant classifies, hard-filters candidates, validates IDs, logs and acc
 
   assert.equal(message.status, 200)
   assert.equal(message.body.answer, 'Ось доступний варіант у вашому бюджеті.')
-  assert.deepEqual(message.body.products.map((product) => product.id), [cheapProductId])
+  assert.deepEqual(
+    message.body.products.map((product) => product.id),
+    [cheapProductId],
+  )
   assert.equal(message.body.remainingRequests, 49)
   assert.equal(mocked.calls.length, 3)
 
@@ -225,11 +233,19 @@ test('out-of-scope requests stop after the classifier and use the detected langu
   setAssistantProviderForTests(mocked.provider)
   const client = new BrowserClient()
   await client.csrf()
-  const response = await client.json<{ answer: string; products: unknown[] }>('/api/assistant/message', {
-    method: 'POST',
-    csrf: 'valid',
-    body: { message: 'Write an essay about WWII', history: [], clientId: uuid(), sessionId: uuid() },
-  })
+  const response = await client.json<{ answer: string; products: unknown[] }>(
+    '/api/assistant/message',
+    {
+      method: 'POST',
+      csrf: 'valid',
+      body: {
+        message: 'Write an essay about WWII',
+        history: [],
+        clientId: uuid(),
+        sessionId: uuid(),
+      },
+    },
+  )
   assert.equal(response.status, 200)
   assert.match(response.body.answer, /Sorry/i)
   assert.deepEqual(response.body.products, [])
@@ -245,11 +261,19 @@ test('competitor and current-external questions stop before product selection', 
   setAssistantProviderForTests(mocked.provider)
   const client = new BrowserClient()
   await client.csrf()
-  const response = await client.json<{ answer: string; products: unknown[] }>('/api/assistant/message', {
-    method: 'POST',
-    csrf: 'valid',
-    body: { message: 'What is better than your competitors right now?', history: [], clientId: uuid(), sessionId: uuid() },
-  })
+  const response = await client.json<{ answer: string; products: unknown[] }>(
+    '/api/assistant/message',
+    {
+      method: 'POST',
+      csrf: 'valid',
+      body: {
+        message: 'What is better than your competitors right now?',
+        history: [],
+        clientId: uuid(),
+        sessionId: uuid(),
+      },
+    },
+  )
   assert.equal(response.status, 200)
   assert.match(response.body.answer, /browse the web/i)
   assert.deepEqual(response.body.products, [])
@@ -281,7 +305,10 @@ test('malformed requests count toward the client quota and Gemini failures are u
   const logs = await pool.query<{ status: string }>(
     `SELECT status FROM assistant_interactions ORDER BY created_at ASC`,
   )
-  assert.deepEqual(logs.rows.map((row) => row.status), ['invalid_request', 'provider_unavailable'])
+  assert.deepEqual(
+    logs.rows.map((row) => row.status),
+    ['invalid_request', 'provider_unavailable'],
+  )
 })
 
 test('assistant enforces the 50-message rolling client limit while counting the rejected request', async () => {
@@ -325,14 +352,22 @@ test('the public Gemini adapter uses server-side structured REST output without 
   })
   const result = await provider.generateStructured('test prompt', { type: 'object' }, 100)
   assert.deepEqual(result, { ok: true })
-  assert.match(requestUrl, /generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-test-model:generateContent$/)
+  assert.match(
+    requestUrl,
+    /generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-test-model:generateContent$/,
+  )
   assert(requestInit)
-  assert.equal((requestInit.headers as Record<string, string>)['x-goog-api-key'], 'server-only-test-key')
+  assert.equal(
+    (requestInit.headers as Record<string, string>)['x-goog-api-key'],
+    'server-only-test-key',
+  )
   const body = JSON.parse(String(requestInit?.body)) as {
-    generationConfig: { responseMimeType: string; responseJsonSchema: unknown }
+    generationConfig: {
+      responseFormat: { text: { mimeType: string; schema: unknown } }
+    }
     tools?: unknown
   }
-  assert.equal(body.generationConfig.responseMimeType, 'application/json')
-  assert.deepEqual(body.generationConfig.responseJsonSchema, { type: 'object' })
+  assert.equal(body.generationConfig.responseFormat.text.mimeType, 'APPLICATION_JSON')
+  assert.deepEqual(body.generationConfig.responseFormat.text.schema, { type: 'object' })
   assert.equal(body.tools, undefined)
 })

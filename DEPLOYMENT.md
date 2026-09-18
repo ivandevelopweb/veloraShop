@@ -55,10 +55,17 @@ The free Neon tier is intended for low-traffic applications and may wake from id
 | `CLIENT_ORIGINS` | Exact Netlify URL, for example `https://velora-shop.netlify.app` |
 | `ADMIN_EMAIL` | Email for the first administrator |
 | `ADMIN_PASSWORD` | New password, 12–72 characters, with letters and digits |
+| `GEMINI_API_KEY` | Google AI Studio API key; keep it only on Render |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` |
+| `GEMINI_TIMEOUT_MS` | `12000` |
 
 `NODE_ENV`, secure cookies, `SameSite=None` and a generated `CSRF_SECRET` are configured by `render.yaml`. Add all three Cloudinary variables in Render later only if uploading new product images is required.
 
 Render uses its assigned `PORT`, listens on its public interface and checks `/api/health`. The `start:render` command applies pending migrations, seeds missing default data, then starts the API. Both migration and seed operations are idempotent.
+
+The assistant uses the stable `gemini-3.1-flash-lite` model. Do not put
+`GEMINI_API_KEY` in Netlify or in any `VITE_*` variable; the browser must call
+the backend endpoint and never receive the key.
 
 Copy the resulting Render URL, for example `https://velora-api.onrender.com`.
 

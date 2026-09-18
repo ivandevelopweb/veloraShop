@@ -34,9 +34,13 @@ function sleep(milliseconds: number) {
 async function waitForPostgres(container: string) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
-      await run('docker', ['exec', container, 'pg_isready', '-U', 'velora_test', '-d', 'velora_test'], {
-        capture: true,
-      })
+      await run(
+        'docker',
+        ['exec', container, 'pg_isready', '-U', 'velora_test', '-d', 'velora_test'],
+        {
+          capture: true,
+        },
+      )
       return
     } catch {
       await sleep(500)
@@ -90,6 +94,9 @@ try {
     LIQPAY_CALLBACK_URL: 'https://example.test/api/payments/liqpay/callback',
     PAYMENT_RESERVATION_MINUTES: '15',
     PAYMENT_RECONCILIATION_GRACE_MINUTES: '10',
+    GEMINI_API_KEY: '',
+    GEMINI_MODEL: 'gemini-3.1-flash-lite',
+    GEMINI_TIMEOUT_MS: '2000',
     TEST_PASSWORD: testPassword,
     ADMIN_EMAIL: 'test-admin@example.test',
     ADMIN_PASSWORD: testPassword,
@@ -113,9 +120,13 @@ try {
     ],
     { env: legacyEnvironment },
   )
-  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/legacy-migration.test.mts'], {
-    env: legacyEnvironment,
-  })
+  await run(
+    process.execPath,
+    ['--import', 'tsx', '--test', 'server/test/legacy-migration.test.mts'],
+    {
+      env: legacyEnvironment,
+    },
+  )
   await run(
     process.execPath,
     [
@@ -132,9 +143,13 @@ try {
   await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/integration.test.mts'], {
     env: environment,
   })
-  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/assistant.integration.test.mts'], {
-    env: environment,
-  })
+  await run(
+    process.execPath,
+    ['--import', 'tsx', '--test', 'server/test/assistant.integration.test.mts'],
+    {
+      env: environment,
+    },
+  )
 } finally {
   if (started) await run('docker', ['rm', '--force', container]).catch(() => undefined)
 }
