@@ -11,6 +11,7 @@ import { productsRouter } from './routes/products.js'
 import { adminRouter } from './routes/admin.js'
 import { assistantRouter } from './routes/assistant.js'
 import { config } from './config.js'
+import { pool } from './db.js'
 import { errorHandler, notFound } from './errors.js'
 import { issueCsrf } from './security.js'
 
@@ -54,8 +55,17 @@ app.use('/api', (_request, response, next) => {
   next()
 })
 
-app.get('/api/health', (_request, response) => {
-  response.json({ status: 'ok' })
+app.get('/api/health', async (_request, response) => {
+  try {
+    await pool.query('SELECT 1')
+    response.json({ status: 'ok' })
+  } catch (error) {
+    console.error(
+      'Health check database failure',
+      error instanceof Error ? error.message : 'unknown error',
+    )
+    response.status(503).json({ status: 'unavailable' })
+  }
 })
 app.get('/api/auth/csrf', (_request, response) => {
   response.set('Cache-Control', 'no-store')

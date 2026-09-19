@@ -28,12 +28,15 @@ Payment is deliberately a mock: an order is created, but money is never charged.
 
 Copy [`.env.example`](.env.example) to a local `.env` file. This file is ignored by Git.
 
-Set a strong `POSTGRES_PASSWORD`, then use the exact same password in `DATABASE_URL`. The included Docker service is exposed only locally on port `5433`:
+Set a strong `POSTGRES_PASSWORD`, then use the exact same password in `DATABASE_URL`. The included Docker service is exposed only locally on port `5433` by default:
 
 ```dotenv
 POSTGRES_PASSWORD=your-local-password
+POSTGRES_HOST_PORT=5433
 DATABASE_URL=postgresql://velora:your-local-password@127.0.0.1:5433/velora
 ```
+
+`POSTGRES_HOST_PORT` is the host port for this project's container. If another local PostgreSQL container already occupies `5433`, choose a free port (for example `55432`) and use the same port in `DATABASE_URL`. This keeps the Velora database separate from other projects and lets Docker restart the correct database after a reboot.
 
 To create the first administrator during seed, set both fields:
 
@@ -51,7 +54,7 @@ docker compose up -d postgres
 docker compose ps
 ```
 
-The named Docker volume `velora-postgres` keeps database files. PostgreSQL listens inside the container on `5432`, and only from this computer on `127.0.0.1:5433`.
+The named Docker volume `velora-postgres` keeps database files. PostgreSQL listens inside the container on `5432`, and only from this computer on `127.0.0.1:${POSTGRES_HOST_PORT}`. The service uses `restart: unless-stopped` so it comes back after Docker restarts.
 
 ### 3. Apply schema migrations and seed test data
 

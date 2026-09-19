@@ -371,3 +371,55 @@ test('the public Gemini adapter uses server-side structured REST output without 
   assert.deepEqual(body.generationConfig.responseFormat.text.schema, { type: 'object' })
   assert.equal(body.tools, undefined)
 })
+
+test('the Gemini adapter retries transient failures but does not retry permanent provider errors', async () => {
+  let transientAttempts = 0
+  const transientProvider = new GeminiHttpProvider({
+    apiKey: 'server-only-test-key',
+    model: 'gemini-test-model',
+    timeoutMs: 2_000,
+    fetchImpl: async () => {
+      transientAttempts += 1
+      if (transientAttempts === 1) {
+        return new Response(JSON.stringify({ error: { message: 'temporary upstream failure' } }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    },
+  })
+  assert.deepEqual(
+    await transientProvider.generateStructured('test prompt', { type: 'object' }, 100),
+    { ok: true },
+  )
+  assert.equal(transientAttempts, 2)
+
+  let authAttempts = 0
+  const authProvider = new GeminiHttpProvider({
+    apiKey: 'server-only-test-key',
+    model: 'gemini-test-model',
+    timeoutMs: 2_000,
+    fetchImpl: async () => {
+      authAttempts += 1
+      return new Response(
+        JSON.stringify({ error: { message: 'API key not valid. Please pass a valid API key.' } }),
+        { status: 401, headers: { 'content-type': 'application/json' } },
+      )
+    },
+  })
+  await assert.rejects(
+    authProvider.generateStructured('test prompt', { type: 'object' }, 100),
+    (error: unknown) => {
+      assert(error instanceof Error)
+      assert.equal((error as { kind?: string }).kind, 'auth')
+      assert.equal((error as { providerStatus?: number }).providerStatus, 401)
+      assert.match((error as { diagnostic?: string }).diagnostic ?? '', /API key not valid/)
+      return true
+    },
+  )
+  assert.equal(authAttempts, 1)
+})

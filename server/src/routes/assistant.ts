@@ -45,7 +45,13 @@ assistantRouter.post(
       status = result.status
     } catch (error) {
       if (error instanceof AssistantProviderError) {
-        status = error.kind === 'invalid_output' ? 'invalid_output' : 'provider_unavailable'
+        status = error.kind === 'invalid_output' ? 'invalid_output' : `provider_${error.kind}`
+        console.error('Assistant provider request failed', {
+          interactionId,
+          kind: error.kind,
+          providerStatus: error.providerStatus,
+          diagnostic: error.diagnostic,
+        })
         thrownError = new ApiError(503, assistantUnavailableMessage)
       } else {
         status = error instanceof ZodError ? 'invalid_request' : 'failed'
