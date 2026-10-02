@@ -55,6 +55,10 @@ app.use('/api', (_request, response, next) => {
   next()
 })
 
+app.get('/health', (_request, response) => {
+  response.status(200).json({ status: 'ok' })
+})
+
 app.get('/api/health', async (_request, response) => {
   try {
     await pool.query('SELECT 1')
