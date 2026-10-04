@@ -19,8 +19,11 @@ import {
   Account,
   Cart,
   Checkout,
+  Contacts,
+  Delivery,
   Home,
   NotFound,
+  Payment,
   PaymentResult,
   Wishlist,
 } from '../pages'
@@ -266,6 +269,9 @@ function StorefrontRoutes({
           }
         />
         <Route path="/about" element={<About />} />
+        <Route path="/delivery" element={<Delivery />} />
+        <Route path="/payment" element={<Payment />} />
+        <Route path="/contacts" element={<Contacts />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />

@@ -188,9 +188,9 @@ export function Header({
         </div>
         <nav className="main-nav" aria-label="Інформація про магазин">
           <Link to="/about">Про магазин</Link>
-          <Link to="/about#delivery">Доставка</Link>
-          <Link to="/about#payment">Оплата</Link>
-          <Link to="/about#contacts">Контакти</Link>
+          <Link to="/delivery">Доставка</Link>
+          <Link to="/payment">Оплата</Link>
+          <Link to="/contacts">Контакти</Link>
           <Link className="main-nav-cta" to={catalogPath()}>
             Почати покупки <Icon name="arrow" size={16} />
           </Link>
@@ -346,9 +346,9 @@ export function Footer() {
         <nav className="footer-group" aria-label="Інформація">
           <h3>Інформація</h3>
           <Link to="/about">Про магазин</Link>
-          <Link to="/about#delivery">Доставка</Link>
-          <Link to="/about#payment">Оплата</Link>
-          <Link to="/about#contacts">Контакти</Link>
+          <Link to="/delivery">Доставка</Link>
+          <Link to="/payment">Оплата</Link>
+          <Link to="/contacts">Контакти</Link>
         </nav>
       </div>
       <div className="footer-bottom main-content">

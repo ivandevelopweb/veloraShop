@@ -233,9 +233,9 @@ export function Home({
       )}
 
       <section className="home-service-line main-content" aria-label="Інформація">
-        <Link to="/about#delivery">Доставка</Link>
-        <Link to="/about#payment">Оплата</Link>
-        <Link to="/about#contacts">Контакти</Link>
+        <Link to="/delivery">Доставка</Link>
+        <Link to="/payment">Оплата</Link>
+        <Link to="/contacts">Контакти</Link>
       </section>
     </main>
   )

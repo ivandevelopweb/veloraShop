@@ -1,4 +1,7 @@
 export { About } from './AboutPage'
+export { Contacts } from './ContactsPage'
+export { Delivery } from './DeliveryPage'
+export { Payment } from './PaymentPage'
 export { Account } from './AccountPage'
 export { Cart } from './CartPage'
 export { Catalog } from './CatalogPage'
