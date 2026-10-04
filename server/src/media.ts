@@ -30,7 +30,11 @@ function getCloudinary() {
   if (!config.cloudinary) {
     throw new ApiError(503, 'Завантаження зображень ще не налаштовано')
   }
-  cloudinary.config(config.cloudinary)
+  cloudinary.config({
+    cloud_name: config.cloudinary.cloudName,
+    api_key: config.cloudinary.apiKey,
+    api_secret: config.cloudinary.apiSecret,
+  })
   return cloudinary
 }
 
