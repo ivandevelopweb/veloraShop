@@ -612,6 +612,203 @@
   border-top: 1px solid #eee7df;
 }
 
+.admin-note-composer,
+.admin-rating-summary {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #e3dad0;
+  background: #fffdf9;
+}
+.admin-note-composer .admin-panel-heading,
+.admin-rating-summary .admin-panel-heading {
+  margin-bottom: 12px;
+}
+.admin-note-composer h2,
+.admin-rating-summary h2 {
+  font-size: 20px;
+}
+.admin-comment-draft-form,
+.admin-comment-create,
+.admin-rating-reset {
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+}
+.admin-comment-draft-form label,
+.admin-comment-create label,
+.admin-rating-reset label,
+.admin-comment-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #5c5349;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-comment-draft-form input,
+.admin-comment-draft-form textarea,
+.admin-comment-create input,
+.admin-comment-create textarea,
+.admin-rating-reset input,
+.admin-comment-filter select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 11px;
+  border: 1px solid #d8cec1;
+  border-radius: 6px;
+  background: #fff;
+  color: #24211e;
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.admin-comment-draft-form textarea,
+.admin-comment-create textarea {
+  resize: vertical;
+}
+.admin-field-help,
+.admin-rating-reset > p,
+.admin-comments-state {
+  margin: 0;
+  color: #776c60;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.admin-comment-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-comment-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+  padding: 14px 0;
+  border-top: 1px solid #eee7df;
+}
+.admin-comment-list > li:first-child {
+  border-top: 0;
+}
+.admin-comment-list strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.admin-comment-list p {
+  margin: 6px 0 0;
+  color: #514b43;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.admin-comment-list button,
+.admin-note-composer button,
+.admin-rating-summary button,
+.admin-comments-panel button {
+  min-height: 44px;
+}
+.admin-rating-values {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.admin-rating-values > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid #eee7df;
+}
+.admin-rating-values dt {
+  color: #776c60;
+  font-size: 12px;
+}
+.admin-rating-values dd {
+  margin: 0;
+  color: #24211e;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+.admin-rating-reset {
+  padding-top: 14px;
+  border-top: 1px solid #eee7df;
+}
+.admin-rating-reset-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+.admin-rating-reset .editor-actions {
+  margin-top: 0;
+}
+.admin-rating-reset .editor-actions button {
+  min-height: 44px;
+}
+.admin-comments-panel {
+  margin-top: 22px;
+}
+.admin-comments-panel .admin-panel-heading {
+  align-items: end;
+}
+.admin-comments-panel h2 {
+  font-size: 22px;
+}
+.admin-comment-filter {
+  min-width: min(260px, 100%);
+}
+.admin-comment-create {
+  grid-template-columns: minmax(150px, 0.7fr) minmax(0, 1.6fr) auto;
+  align-items: end;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #eee7df;
+}
+.admin-comment-create button {
+  max-width: 240px;
+}
+.admin-managed-comments {
+  margin-top: 0;
+}
+.admin-comment-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+}
+.admin-comment-meta time {
+  color: #776c60;
+  font-size: 11px;
+}
+.admin-managed-comment-copy {
+  min-width: 0;
+}
+.admin-comments-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #eee7df;
+  color: #776c60;
+  font-size: 12px;
+}
+.admin-comments-pagination > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-comments-panel :focus-visible,
+.admin-note-composer :focus-visible,
+.admin-rating-summary :focus-visible {
+  outline: 3px solid #245b9e;
+  outline-offset: 2px;
+}
+
 .admin-code {
   color: #6e5735;
   font:
@@ -809,6 +1006,38 @@
   .admin-image-card img {
     width: 72px;
     height: 72px;
+  }
+  .admin-note-composer,
+  .admin-rating-summary {
+    padding: 14px;
+  }
+  .admin-rating-reset-fields,
+  .admin-comment-create {
+    grid-template-columns: 1fr;
+  }
+  .admin-comment-create button {
+    width: 100%;
+    max-width: none;
+  }
+  .admin-comment-filter {
+    width: 100%;
+  }
+  .admin-comments-panel .admin-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .admin-comment-list > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-comment-list > li > button {
+    width: 100%;
+  }
+  .admin-comments-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .admin-comments-pagination > div button {
+    flex: 1;
   }
   .categories-layout {
     grid-template-columns: 1fr;

@@ -22,6 +22,16 @@ export function errorHandler(
   _next: NextFunction,
 ) {
   if (error instanceof ApiError) return response.status(error.status).json({ error: error.message })
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    (('type' in error && error.type === 'entity.too.large') ||
+      ('status' in error && error.status === 413))
+  ) {
+    return response.status(413).json({
+      error: 'Запит завеликий. Зменште текст або кількість початкових коментарів і спробуйте ще раз.',
+    })
+  }
   if (error instanceof ZodError)
     return response.status(400).json({ error: 'Перевірте коректність введених даних' })
   if (error instanceof MulterError) {

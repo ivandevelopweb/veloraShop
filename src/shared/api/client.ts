@@ -6,11 +6,19 @@ import type {
   AssistantMessageResponse,
   CartItem,
   Category,
+  AdminCommunityComment,
   CheckoutDetails,
+  CustomerCommunityState,
+  InitialAdminComment,
   LiqpayCheckout,
   PaymentStatus,
   Order,
-  ProductInput,
+  ProductCommunity,
+  ProductCreateInput,
+  ProductUpdateInput,
+  PublicProductRating,
+  RatingResetInput,
+  RatingSummary,
   StorefrontProduct,
   User,
 } from './types'
@@ -128,6 +136,54 @@ export const api = {
   },
   getProduct: (slug: string) =>
     request<{ product: StorefrontProduct }>('GET', `/api/products/${encodeURIComponent(slug)}`),
+  getCommunity: (productId: number, params: { page?: number; pageSize?: number } = {}) => {
+    const query = new URLSearchParams(
+      Object.entries(params).map(([key, value]) => [key, String(value)]),
+    )
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return request<ProductCommunity>(
+      'GET',
+      `/api/products/${productId}/community${suffix}`,
+    )
+  },
+  getProductRatings: (productId: number, params: { page?: number; pageSize?: number } = {}) => {
+    const query = new URLSearchParams(
+      Object.entries(params).map(([key, value]) => [key, String(value)]),
+    )
+    const suffix = query.size ? `?${query.toString()}` : ''
+    return request<{ ratings: PublicProductRating[]; page: number; pageSize: number; total: number }>(
+      'GET',
+      `/api/products/${productId}/ratings${suffix}`,
+    )
+  },
+  getMyCommunity: (productId: number) =>
+    request<CustomerCommunityState>('GET', `/api/products/${productId}/community/me`),
+  putProductRating: (productId: number, payload: { stars: number; expectedEpoch: string }) =>
+    request<{ summary: RatingSummary; rating: { stars: number; updatedAt: string } }>(
+      'POST',
+      `/api/products/${productId}/ratings`,
+      payload,
+    ),
+  createProductComment: (
+    productId: number,
+    payload: { message: string; clientRequestId: string },
+  ) =>
+    request<{ comment: ProductCommunity['comments']['items'][number]; replayed: boolean }>(
+      'POST',
+      `/api/products/${productId}/comments`,
+      payload,
+    ),
+  updateProductComment: (productId: number, commentId: string, message: string) =>
+    request<{ comment: ProductCommunity['comments']['items'][number] }>(
+      'PATCH',
+      `/api/products/${productId}/comments/${encodeURIComponent(commentId)}`,
+      { message },
+    ),
+  deleteProductComment: (productId: number, commentId: string) =>
+    request<void>(
+      'DELETE',
+      `/api/products/${productId}/comments/${encodeURIComponent(commentId)}`,
+    ),
   getCategories: () => request<{ categories: Category[] }>('GET', '/api/categories'),
   sendAssistantMessage: (payload: {
     message: string
@@ -183,10 +239,45 @@ export const api = {
     },
     getProduct: (id: number) =>
       request<{ product: AdminProduct }>('GET', `/api/admin/products/${id}`),
-    createProduct: (payload: ProductInput) =>
+    createProduct: (payload: ProductCreateInput) =>
       request<{ product: AdminProduct }>('POST', '/api/admin/products', payload),
-    updateProduct: (id: number, payload: Partial<ProductInput>) =>
+    updateProduct: (id: number, payload: ProductUpdateInput) =>
       request<{ product: AdminProduct }>('PATCH', `/api/admin/products/${id}`, payload),
+    getProductComments: (
+      id: number,
+      params: { page?: number; pageSize?: number; filter?: 'active' | 'deleted' | 'all' } = {},
+    ) => {
+      const query = new URLSearchParams(
+        Object.entries(params).map(([key, value]) => [key, String(value)]),
+      )
+      const suffix = query.size ? `?${query.toString()}` : ''
+      return request<{
+        comments: AdminCommunityComment[]
+        page: number
+        pageSize: number
+        total: number
+        commentCount: number
+        filter: 'active' | 'deleted' | 'all'
+      }>('GET', `/api/admin/products/${id}/comments${suffix}`)
+    },
+    createProductComment: (id: number, payload: InitialAdminComment) =>
+      request<{ comment: AdminCommunityComment; replayed: boolean }>(
+        'POST',
+        `/api/admin/products/${id}/comments`,
+        payload,
+      ),
+    deleteProductComment: (id: number, commentId: string) =>
+      request<void>('DELETE', `/api/admin/products/${id}/comments/${encodeURIComponent(commentId)}`),
+    resetProductRating: (id: number, payload: RatingResetInput) =>
+      request<{
+        summary: RatingSummary & {
+          baseRating: number
+          baseCount: number
+          baseSum: string
+          ratingEpoch: string
+          ratingRevision: string
+        }
+      }>('POST', `/api/admin/products/${id}/rating-reset`, payload),
     deleteProduct: (id: number) => request<void>('DELETE', `/api/admin/products/${id}`),
     uploadProductImages: (id: number, files: File[]) => {
       const formData = new FormData()

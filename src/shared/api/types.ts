@@ -62,6 +62,11 @@ export type AdminProduct = {
   isAvailable: boolean
   rating: number
   reviewCount: number
+  baseRating: number
+  baseCount: number
+  baseSum: string
+  ratingEpoch: string
+  ratingRevision: string
   badge: string
   createdAt: string
   updatedAt: string
@@ -111,6 +116,71 @@ export type ProductInput = {
   rating: number
   reviewCount: number
   badge: string
+}
+
+export type ProductFieldsInput = Omit<ProductInput, 'rating' | 'reviewCount'>
+
+export type ProductUpdateInput = Partial<ProductFieldsInput>
+
+export type InitialAdminComment = {
+  nickname: string
+  message: string
+  clientRequestId: string
+}
+
+export type ProductCreateInput = ProductInput & {
+  initialComments?: InitialAdminComment[]
+}
+
+export type PublicCommunityComment = {
+  id: string
+  nickname: string
+  message: string
+  createdAt: string
+}
+
+export type AdminCommunityComment = PublicCommunityComment & {
+  source: 'customer' | 'admin'
+  updatedAt: string
+  deletedAt: string | null
+}
+
+export type CommunityPage<T> = {
+  page: number
+  pageSize: number
+  total: number
+  items: T[]
+}
+
+export type ProductCommunity = {
+  summary: { rating: number; reviewCount: number; commentCount: number }
+  comments: CommunityPage<PublicCommunityComment>
+}
+
+export type PublicProductRating = {
+  displayName: string
+  stars: number
+  createdAt: string
+}
+
+export type CustomerCommunityState = {
+  canReview: boolean
+  reason: 'purchase_required' | null
+  ratingEpoch: string
+  rating: { stars: number; updatedAt: string } | null
+  comment: PublicCommunityComment & { updatedAt: string } | null
+}
+
+export type RatingSummary = {
+  rating: number
+  reviewCount: number
+}
+
+export type RatingResetInput = {
+  rating: number
+  count: number
+  expectedEpoch: string
+  expectedRevision: string
 }
 
 export type CartItem = {

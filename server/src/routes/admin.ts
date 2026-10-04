@@ -13,6 +13,8 @@ import {
   type UploadedProductImage,
 } from '../media.js'
 import { requireCsrf } from '../security.js'
+import { initialCommentsSchema } from '../reviews/schemas.js'
+import { createAdminComment } from '../reviews/service.js'
 
 const adminRouter = Router()
 const productStatuses = ['draft', 'active', 'archived'] as const
@@ -22,7 +24,7 @@ const idSchema = z.object({ id: z.coerce.number().int().positive() })
 const categoryIdSchema = z.object({ id: z.string().uuid() })
 const categoryReferenceSchema = z.string().uuid().nullable()
 
-const productInputFieldsSchema = z
+const productEditableFieldsSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
     slug: z
@@ -38,13 +40,24 @@ const productInputFieldsSchema = z
     oldPriceUah: z.coerce.number().int().min(0).max(10_000_000).nullable(),
     stock: z.coerce.number().int().min(0).max(100_000),
     status: z.enum(productStatuses),
-    rating: z.coerce.number().min(0).max(5),
-    reviewCount: z.coerce.number().int().min(0).max(1_000_000),
     badge: z.string().trim().max(80),
   })
   .strict()
 
+const productRatingSchema = z
+  .number()
+  .finite()
+  .min(0)
+  .max(5)
+  .refine((value) => Math.abs(value * 10 - Math.round(value * 10)) < 1e-8)
+
+const productInputFieldsSchema = productEditableFieldsSchema.extend({
+  rating: productRatingSchema,
+  reviewCount: z.number().int().min(0).max(1_000_000),
+})
+
 const productInputSchema = productInputFieldsSchema
+  .extend({ initialComments: initialCommentsSchema.optional() })
   .superRefine((value, context) => {
     if (value.oldPriceUah !== null && value.oldPriceUah < value.priceUah) {
       context.addIssue({
@@ -53,9 +66,16 @@ const productInputSchema = productInputFieldsSchema
         message: 'Попередня ціна не може бути меншою за поточну',
       })
     }
+    if (value.reviewCount > 0 && value.rating < 1) {
+      context.addIssue({
+        code: 'custom',
+        path: ['rating'],
+        message: 'За наявності оцінок середній рейтинг має бути від 1 до 5',
+      })
+    }
   })
 
-const productUpdateSchema = productInputFieldsSchema.partial()
+const productUpdateSchema = productEditableFieldsSchema.partial().strict()
 
 const categoryInputSchema = z
   .object({
@@ -90,6 +110,11 @@ const adminProductSelect = `
     products.is_available AS "isAvailable",
     products.rating,
     products.review_count AS "reviewCount",
+    products.base_rating AS "baseRating",
+    products.base_count::text AS "baseCount",
+    products.base_sum::text AS "baseSum",
+    products.rating_epoch::text AS "ratingEpoch",
+    products.rating_revision::text AS "ratingRevision",
     products.badge,
     products.created_at AS "createdAt",
     products.updated_at AS "updatedAt",
@@ -130,6 +155,11 @@ type AdminProduct = {
   isAvailable: boolean
   rating: string | number
   reviewCount: number
+  baseRating: string | number
+  baseCount: string
+  baseSum: string
+  ratingEpoch: string
+  ratingRevision: string
   badge: string
   createdAt: string
   updatedAt: string
@@ -148,7 +178,12 @@ type AdminProduct = {
 }
 
 function normalizeAdminProduct(product: AdminProduct) {
-  return { ...product, rating: Number(product.rating) }
+  return {
+    ...product,
+    rating: Number(product.rating),
+    baseRating: Number(product.baseRating),
+    baseCount: Number(product.baseCount),
+  }
 }
 
 async function getAdminProduct(id: number, client?: PoolClient) {
@@ -204,7 +239,7 @@ async function writeAudit(
   )
 }
 
-function productChanges(payload: Partial<z.infer<typeof productInputSchema>>) {
+function productChanges(payload: Partial<z.infer<typeof productEditableFieldsSchema>>) {
   const columns: Array<[string, unknown]> = [
     ['name', payload.name],
     ['slug', payload.slug],
@@ -215,8 +250,6 @@ function productChanges(payload: Partial<z.infer<typeof productInputSchema>>) {
     ['old_price_uah', payload.oldPriceUah],
     ['stock', payload.stock],
     ['status', payload.status],
-    ['rating', payload.rating],
-    ['review_count', payload.reviewCount],
     ['badge', payload.badge],
   ]
   return columns.filter(([, value]) => value !== undefined)
@@ -375,8 +408,8 @@ adminRouter.post(
       const result = await client.query<{ id: number }>(
         `INSERT INTO products (
           name, slug, category_id, short_description, description, price_uah, old_price_uah,
-          stock, status, is_available, rating, review_count, badge
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          stock, status, is_available, rating, review_count, base_rating, base_count, badge
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id`,
         [
           payload.name,
@@ -389,6 +422,8 @@ adminRouter.post(
           payload.stock,
           payload.status,
           payload.status === 'active',
+          payload.reviewCount > 0 ? payload.rating : 0,
+          payload.reviewCount,
           payload.rating,
           payload.reviewCount,
           payload.badge,
@@ -396,8 +431,12 @@ adminRouter.post(
       )
       const id = result.rows[0]?.id
       if (!id) throw new ApiError(500, 'Не вдалося створити товар')
+      for (const comment of payload.initialComments ?? []) {
+        await createAdminComment(client, id, auth.userId, comment)
+      }
       await writeAudit(client, auth.userId, 'product.created', 'product', String(id), {
         name: payload.name,
+        initialCommentCount: payload.initialComments?.length ?? 0,
       })
       return getAdminProduct(id, client)
     })

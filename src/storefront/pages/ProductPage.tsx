@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import type { User } from '../../api'
 import { formatPriceWithCurrency, formatStock } from '../../shared/lib/format'
+import { ProductReviews } from '../components/ProductReviews'
 import { StorefrontIcon as Icon } from '../components/StorefrontIcon'
 import { ProductCard } from '../components/StorefrontComponents'
+import type { DisplayCartItem } from '../model/cart'
+import type { DisplayProduct } from '../model/displayProduct'
 import { catalogPath } from '../routing/paths'
 
 const price = formatPriceWithCurrency
@@ -19,8 +23,31 @@ function galleryFor(item) {
     : []
 }
 
-export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
+export function ProductView({
+  products,
+  item,
+  cart,
+  wishlist,
+  user,
+  sessionLoading,
+  refreshCatalog,
+  onRequireLogin,
+  onAdd,
+  onWish,
+}: {
+  products: DisplayProduct[]
+  item: DisplayProduct
+  cart: DisplayCartItem[]
+  wishlist: number[]
+  user: User | null
+  sessionLoading: boolean
+  refreshCatalog: () => Promise<boolean>
+  onRequireLogin: () => void
+  onAdd: (item: DisplayProduct) => void | Promise<void>
+  onWish: (id: number) => void
+}) {
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [ratingSummary, setRatingSummary] = useState({ rating: item.rating, reviewCount: item.reviewCount, commentCount: 0 })
   const galleryImages = galleryFor(item)
   const activeImage = galleryImages[activeImageIndex] ?? galleryImages[0]
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
@@ -63,12 +90,22 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
           </div>
           <p className="detail-subtitle">{item.shortDescription}</p>
           <p className="product-code">Код товару: {item.id}</p>
-          <div className="detail-rating" aria-label={`Рейтинг ${item.rating.toFixed(1)} з 5`}>
-            <span>
-              <Icon name="star" size={16} /> {item.rating.toFixed(1)}
-            </span>
-            <span>· {item.reviewCount} оцінок</span>
-          </div>
+          <a
+            className="detail-rating"
+            href="#product-reviews-title"
+            aria-label={ratingSummary.reviewCount > 0
+              ? `Рейтинг ${ratingSummary.rating.toFixed(1)} з 5, ${ratingSummary.reviewCount} оцінок`
+              : 'Ще немає оцінок'}
+          >
+            {ratingSummary.reviewCount > 0 ? (
+              <>
+                <span><Icon name="star" size={16} /> {ratingSummary.rating.toFixed(1)}</span>
+                <span>· {ratingSummary.reviewCount} оцінок</span>
+              </>
+            ) : (
+              <span>Ще немає оцінок</span>
+            )}
+          </a>
           <div className="detail-price">
             {item.oldPrice !== null && item.oldPrice > item.price && <s>{price(item.oldPrice)}</s>}
             <strong>{price(item.price)}</strong>
@@ -126,6 +163,15 @@ export function ProductView({ products, item, cart, wishlist, onAdd, onWish }) {
         <h2 id="product-description-title">Опис товару</h2>
         <p>{item.description || item.shortDescription}</p>
       </section>
+
+      <ProductReviews
+        productId={item.id}
+        user={user}
+        sessionLoading={sessionLoading}
+        onRequireLogin={onRequireLogin}
+        onSummaryChange={setRatingSummary}
+        refreshCatalog={refreshCatalog}
+      />
 
       {recommendations.length > 0 && (
         <section className="recommendations">

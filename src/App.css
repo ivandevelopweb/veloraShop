@@ -2092,6 +2092,11 @@
   font-size: 14px;
   line-height: 20px;
 }
+.app-shell a.detail-rating {
+  width: fit-content;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 .app-shell .detail-rating span:first-child {
   display: inline-flex;
@@ -2151,6 +2156,316 @@
   color: var(--velora-muted);
   font-size: 16px;
   line-height: 26px;
+}
+
+.app-shell .product-reviews {
+  min-width: 0;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--velora-line);
+}
+.app-shell .product-reviews-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.app-shell .product-reviews-heading h2,
+.app-shell .product-review-columns h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+}
+.app-shell .product-reviews-heading p {
+  margin: 5px 0 0;
+  color: var(--velora-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+.app-shell .product-review-message {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--velora-line);
+  background: var(--velora-surface);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+.app-shell .product-review-message.error {
+  border-color: #e8b9bf;
+  background: #fff4f5;
+  color: var(--velora-danger);
+}
+.app-shell .product-review-message.success {
+  border-color: #b8d4c0;
+  background: #f2f8f3;
+  color: var(--velora-success);
+}
+.app-shell .product-review-compose {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  padding: 20px 0 24px;
+  border-top: 1px solid var(--velora-line);
+  border-bottom: 1px solid var(--velora-line);
+}
+.app-shell .product-rating-form,
+.app-shell .product-comment-form {
+  min-width: 0;
+}
+.app-shell .product-rating-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.app-shell .product-rating-form legend,
+.app-shell .product-comment-form > label {
+  margin-bottom: 8px;
+  color: var(--velora-text);
+  font-size: 16px;
+  font-weight: 500;
+}
+.app-shell .product-star-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 4px;
+}
+.app-shell .product-star-option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  min-height: 48px;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  color: var(--velora-text);
+  cursor: pointer;
+  font-size: 14px;
+}
+.app-shell .product-star-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.app-shell .product-star-option > span:first-of-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.app-shell .product-star-option svg,
+.app-shell .public-rating-list svg {
+  color: #5d6670;
+}
+.app-shell .product-star-option:has(input:checked) {
+  border-color: var(--velora-primary);
+  background: var(--velora-selected);
+  color: var(--velora-primary);
+}
+.app-shell .product-star-option:has(input:checked) svg {
+  color: var(--velora-primary);
+}
+.app-shell .product-star-option:has(input:focus-visible) {
+  outline: 2px solid var(--velora-primary);
+  outline-offset: 2px;
+}
+.app-shell .product-review-help {
+  margin: 6px 0 12px;
+  color: var(--velora-muted);
+  font-size: 13px;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+.app-shell .product-review-compose textarea {
+  display: block;
+  width: 100%;
+  min-height: 104px;
+  padding: 10px 11px;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-bg);
+  color: var(--velora-text);
+  font: inherit;
+  line-height: 24px;
+  resize: vertical;
+}
+.app-shell .review-primary,
+.app-shell .review-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-bg);
+  color: var(--velora-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
+}
+.app-shell .review-primary {
+  border-color: var(--velora-primary);
+  background: var(--velora-primary);
+  color: #fff;
+}
+.app-shell .review-primary:hover:not(:disabled) {
+  background: var(--velora-primary-hover);
+}
+.app-shell .review-secondary:hover:not(:disabled) {
+  border-color: var(--velora-primary);
+  color: var(--velora-primary);
+}
+.app-shell .review-primary:disabled,
+.app-shell .review-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.app-shell .product-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.app-shell .product-review-access {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  margin-bottom: 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--velora-line);
+  border-bottom: 1px solid var(--velora-line);
+  color: var(--velora-muted);
+  font-size: 14px;
+  line-height: 21px;
+}
+.app-shell .product-review-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px;
+  margin-top: 24px;
+}
+.app-shell .product-review-columns > section {
+  min-width: 0;
+}
+.app-shell .product-review-columns h3 {
+  margin-bottom: 10px;
+  font-size: 18px;
+  line-height: 24px;
+}
+.app-shell .product-ratings-disclosure {
+  min-width: 0;
+  border-top: 1px solid var(--velora-line);
+}
+.app-shell .product-ratings-disclosure summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 48px;
+  color: var(--velora-text);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+.app-shell .product-ratings-disclosure summary span {
+  color: var(--velora-muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+.app-shell .product-ratings-disclosure[open] summary {
+  margin-bottom: 6px;
+}
+.app-shell .public-review-list,
+.app-shell .public-rating-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app-shell .public-review-list li,
+.app-shell .public-rating-list li {
+  min-width: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--velora-line);
+}
+.app-shell .public-review-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.app-shell .public-review-meta strong,
+.app-shell .public-rating-list strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 500;
+}
+.app-shell .public-review-meta time,
+.app-shell .public-rating-list time {
+  flex: 0 0 auto;
+  color: var(--velora-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.app-shell .public-review-list p {
+  margin: 7px 0 0;
+  color: var(--velora-text);
+  font-size: 14px;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.app-shell .public-rating-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  align-items: center;
+}
+.app-shell .public-rating-list li > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.app-shell .public-rating-list time {
+  grid-column: 1 / -1;
+}
+.app-shell .product-review-empty {
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--velora-line);
+  color: var(--velora-muted);
+  font-size: 14px;
+}
+.app-shell .review-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--velora-muted);
+  font-size: 12px;
+}
+.app-shell .review-pagination > div {
+  display: flex;
+  gap: 6px;
+}
+.app-shell .review-pagination button {
+  padding-inline: 10px;
+  font-size: 12px;
 }
 
 .app-shell .recommendations {
@@ -2239,13 +2554,40 @@
   }
 
   .app-shell .product-description,
-  .app-shell .recommendations {
+  .app-shell .recommendations,
+  .app-shell .product-reviews {
     margin-top: 32px;
   }
 
   .app-shell .featured-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-shell .product-review-compose,
+  .app-shell .product-review-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .app-shell .product-review-columns {
+    gap: 28px;
+  }
+  .app-shell .product-reviews-heading h2 {
+    font-size: 22px;
+    line-height: 28px;
+  }
+  .app-shell .public-review-meta {
+    flex-direction: column;
+    gap: 3px;
+  }
+  .app-shell .product-comment-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .app-shell .product-comment-actions button {
+    width: 100%;
   }
 }
 

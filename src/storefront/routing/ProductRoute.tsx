@@ -5,7 +5,7 @@ import { toDisplayProducts } from '../model/displayProduct'
 import { NotFound, ProductView } from '../pages'
 import { RouteError, RouteLoading } from './RouteStates'
 
-export function ProductRoute({ products, cart, wishlist, onAdd, onWish }) {
+export function ProductRoute({ products, cart, wishlist, user, sessionLoading, refreshCatalog, onRequireLogin, onAdd, onWish }) {
   const { productSlug } = useParams()
   if (!productSlug) return <NotFound />
   return (
@@ -15,13 +15,17 @@ export function ProductRoute({ products, cart, wishlist, onAdd, onWish }) {
       products={products}
       cart={cart}
       wishlist={wishlist}
+      user={user}
+      sessionLoading={sessionLoading}
+      refreshCatalog={refreshCatalog}
+      onRequireLogin={onRequireLogin}
       onAdd={onAdd}
       onWish={onWish}
     />
   )
 }
 
-function ProductRouteContent({ productSlug, products, cart, wishlist, onAdd, onWish }) {
+function ProductRouteContent({ productSlug, products, cart, wishlist, user, sessionLoading, refreshCatalog, onRequireLogin, onAdd, onWish }) {
   const [state, setState] = useState({ status: 'loading', product: null, error: '' })
   const [retry, setRetry] = useState(0)
 
@@ -57,6 +61,10 @@ function ProductRouteContent({ productSlug, products, cart, wishlist, onAdd, onW
       item={state.product}
       cart={cart}
       wishlist={wishlist}
+      user={user}
+      sessionLoading={sessionLoading}
+      refreshCatalog={refreshCatalog}
+      onRequireLogin={onRequireLogin}
       onAdd={onAdd}
       onWish={onWish}
     />

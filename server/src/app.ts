@@ -10,6 +10,7 @@ import { paymentsRouter } from './routes/payments.js'
 import { productsRouter } from './routes/products.js'
 import { adminRouter } from './routes/admin.js'
 import { assistantRouter } from './routes/assistant.js'
+import { reviewsRouter } from './routes/reviews.js'
 import { config } from './config.js'
 import { pool } from './db.js'
 import { errorHandler, notFound } from './errors.js'
@@ -83,6 +84,7 @@ app.use(
   express.urlencoded({ extended: false, limit: '20kb', parameterLimit: 2 }),
 )
 app.use('/api/payments', paymentsRouter)
+app.use('/api', reviewsRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/categories', categoriesRouter)
 app.use('/api/assistant', assistantRouter)

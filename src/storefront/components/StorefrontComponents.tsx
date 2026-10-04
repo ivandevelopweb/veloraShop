@@ -40,9 +40,15 @@ export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
           <p className="product-subtitle">{item.shortDescription}</p>
         </div>
         <div className="product-meta">
-          <div className="rating">
-            <Icon name="star" size={16} />
-            {item.rating.toFixed(1)} <small>· {item.reviewCount} оцінок</small>
+          <div className={`rating ${item.reviewCount === 0 ? 'no-ratings' : ''}`}>
+            {item.reviewCount > 0 ? (
+              <>
+                <Icon name="star" size={16} />
+                {item.rating.toFixed(1)} <small>· {item.reviewCount} оцінок</small>
+              </>
+            ) : (
+              <span>Ще немає оцінок</span>
+            )}
           </div>
           <p className={`stock-note ${item.stock <= 5 ? 'low-stock' : ''}`}>{stockLabel(item.stock)}</p>
         </div>

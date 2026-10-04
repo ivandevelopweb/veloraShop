@@ -32,6 +32,7 @@ function sleep(milliseconds: number) {
 }
 
 async function waitForPostgres(container: string) {
+  let consecutiveReadyChecks = 0
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
       await run(
@@ -41,12 +42,14 @@ async function waitForPostgres(container: string) {
           capture: true,
         },
       )
-      return
+      consecutiveReadyChecks += 1
+      if (consecutiveReadyChecks === 3) return
     } catch {
-      await sleep(500)
+      consecutiveReadyChecks = 0
     }
+    await sleep(500)
   }
-  throw new Error('Timed out waiting for the isolated PostgreSQL test database')
+  throw new Error('Timed out waiting for stable readiness of isolated PostgreSQL test database')
 }
 
 const nonce = randomBytes(12).toString('hex')
@@ -105,6 +108,7 @@ try {
     CLOUDINARY_API_SECRET: '',
   }
   await run('docker', ['exec', container, 'createdb', '-U', 'velora_test', 'velora_legacy'])
+  await run('docker', ['exec', container, 'createdb', '-U', 'velora_test', 'velora_migration'])
   const legacyEnvironment = { ...environment, DATABASE_URL: legacyDatabaseUrl }
   await run(
     process.execPath,
@@ -120,6 +124,57 @@ try {
     ],
     { env: legacyEnvironment },
   )
+  const migrationDatabaseUrl = `postgresql://velora_test:${databasePassword}@127.0.0.1:${port}/velora_migration`
+  const migrationEnvironment = { ...environment, DATABASE_URL: migrationDatabaseUrl }
+  await run(
+    process.execPath,
+    [
+      'node_modules/node-pg-migrate/bin/node-pg-migrate.js',
+      '-m',
+      'server/migrations',
+      '--database-url',
+      migrationDatabaseUrl,
+      '--verbose=false',
+      'up',
+      '6',
+    ],
+    { env: migrationEnvironment },
+  )
+  await run('docker', [
+    'exec',
+    container,
+    'psql',
+    '-U',
+    'velora_test',
+    '-d',
+    'velora_migration',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-c',
+    `INSERT INTO products (id, name, price_uah, is_available, slug, short_description, description, stock, status, rating, review_count, badge)
+     VALUES
+       (9001, 'Migration rating fixture', 100, TRUE, 'migration-rating-fixture', 'Fixture', 'Fixture', 1, 'active', 2.0, 10, ''),
+       (9002, 'Migration empty fixture', 100, TRUE, 'migration-empty-fixture', 'Fixture', 'Fixture', 1, 'active', 4.5, 0, '')`,
+  ])
+  await run(
+    process.execPath,
+    [
+      'node_modules/node-pg-migrate/bin/node-pg-migrate.js',
+      '-m',
+      'server/migrations',
+      '--database-url',
+      migrationDatabaseUrl,
+      '--verbose=false',
+      'up',
+    ],
+    { env: migrationEnvironment },
+  )
+  await run(process.execPath, ['--import', 'tsx', 'server/src/seed.ts'], {
+    env: migrationEnvironment,
+  })
+  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/reviews-migration.test.mts'], {
+    env: migrationEnvironment,
+  })
   await run(
     process.execPath,
     ['--import', 'tsx', '--test', 'server/test/legacy-migration.test.mts'],
@@ -141,6 +196,9 @@ try {
     { env: environment },
   )
   await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/integration.test.mts'], {
+    env: environment,
+  })
+  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/reviews.integration.test.mts'], {
     env: environment,
   })
   await run(

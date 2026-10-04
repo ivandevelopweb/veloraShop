@@ -174,7 +174,6 @@ productsRouter.get(
        WHERE products.slug = $1
          AND products.status = 'active'
          AND products.is_available = TRUE
-          AND products.stock > products.reserved_stock
          AND (categories.is_archived = FALSE OR categories.id IS NULL)`,
       [slug],
     )

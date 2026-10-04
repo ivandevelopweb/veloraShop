@@ -203,6 +203,10 @@ function StorefrontRoutes({
               products={products}
               cart={cart}
               wishlist={wishlist}
+              user={user}
+              sessionLoading={sessionLoading}
+              refreshCatalog={refreshCatalog}
+              onRequireLogin={() => navigate(accountPath({ mode: 'login', next: currentPath(location) }))}
               onAdd={onAdd}
               onWish={onWish}
             />

@@ -119,8 +119,8 @@ async function seedProduct(stock = 3, suffix = 'main') {
   const { rows } = await pool.query<{ id: number }>(
     `INSERT INTO products (
       name, slug, short_description, description, price_uah, stock, status,
-      is_available, rating, review_count, badge
-    ) VALUES ($1, $2, 'Короткий опис', 'Повний опис', 1000, $3, 'active', TRUE, 4.8, 0, '')
+      is_available, rating, review_count, base_rating, base_count, badge
+    ) VALUES ($1, $2, 'Короткий опис', 'Повний опис', 1000, $3, 'active', TRUE, 0, 0, 4.8, 0, '')
      RETURNING id`,
     [`Product ${suffix}`, `product-${suffix}`, stock],
   )
