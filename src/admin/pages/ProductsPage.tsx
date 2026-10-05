@@ -13,6 +13,7 @@ export function Products({ onNavigate }: { onNavigate: (route: RouteState) => vo
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [pendingProductIds, setPendingProductIds] = useState<Set<number>>(() => new Set())
 
   useEffect(() => {
     let active = true
@@ -47,14 +48,39 @@ export function Products({ onNavigate }: { onNavigate: (route: RouteState) => vo
   }, [page, search, status, categoryId])
 
   const pageCount = Math.max(1, Math.ceil(total / 12))
-  const remove = async (product: AdminProduct) => {
-    if (!window.confirm(`Архівувати «${product.name}»? Нові покупці більше не бачитимуть цей товар.`)) return
+  const handleProductAction = async (product: AdminProduct) => {
+    const isArchived = product.status === 'archived'
+    const confirmation = isArchived
+      ? `Безповоротно видалити товар «${product.name}»? Історія замовлень залишиться збереженою.`
+      : `Архівувати «${product.name}»? Нові покупці більше не бачитимуть цей товар.`
+    if (!window.confirm(confirmation)) return
+
+    setError('')
+    setPendingProductIds((current) => new Set(current).add(product.id))
     try {
       await api.admin.deleteProduct(product.id)
-      setProducts((current) => current.filter((item) => item.id !== product.id))
-      setTotal((current) => current - 1)
+      if (isArchived || status !== 'all') {
+        setProducts((current) => current.filter((item) => item.id !== product.id))
+        setTotal((current) => current - 1)
+      } else {
+        setProducts((current) =>
+          current.map((item) =>
+            item.id === product.id ? { ...item, status: 'archived', isAvailable: false } : item,
+          ),
+        )
+      }
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Не вдалося архівувати товар')
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : `Не вдалося ${isArchived ? 'видалити' : 'архівувати'} товар`,
+      )
+    } finally {
+      setPendingProductIds((current) => {
+        const next = new Set(current)
+        next.delete(product.id)
+        return next
+      })
     }
   }
 
@@ -160,8 +186,16 @@ export function Products({ onNavigate }: { onNavigate: (route: RouteState) => vo
                           >
                             Редагувати
                           </button>
-                          <button className="danger" onClick={() => void remove(product)}>
-                            Архівувати
+                          <button
+                            className="danger"
+                            disabled={pendingProductIds.has(product.id)}
+                            onClick={() => void handleProductAction(product)}
+                          >
+                            {pendingProductIds.has(product.id)
+                              ? 'Обробка…'
+                              : product.status === 'archived'
+                                ? 'Видалити'
+                                : 'Архівувати'}
                           </button>
                         </div>
                       </td>

@@ -498,6 +498,120 @@ test('checkout racing with archive never creates a reservation for an archived p
   }
 })
 
+test('deleting an archived product preserves orders and reservations and clears carts', async () => {
+  const admin = await registerAdmin('ProductDeleteAdmin')
+  const buyer = await register('ProductDeleteBuyer')
+  const cartOwner = await register('ProductDeleteCartOwner')
+  const productId = await seedProduct(3, 'delete-history')
+  await addToCart(buyer.client, productId)
+  const created = await checkout(buyer.client)
+  assert.equal(created.status, 201)
+  await addToCart(cartOwner.client, productId)
+
+  const archive = await admin.client.json(`/api/admin/products/${productId}`, {
+    method: 'DELETE',
+    csrf: 'valid',
+  })
+  assert.equal(archive.status, 204)
+  assert.equal((await pool.query('SELECT id FROM products WHERE id = $1', [productId])).rowCount, 1)
+  assert.equal(
+    (await pool.query<{ status: string }>('SELECT status FROM products WHERE id = $1', [productId]))
+      .rows[0]?.status,
+    'archived',
+  )
+
+  const deletion = await admin.client.json(`/api/admin/products/${productId}`, {
+    method: 'DELETE',
+    csrf: 'valid',
+  })
+  assert.equal(deletion.status, 204)
+  assert.equal((await pool.query('SELECT id FROM products WHERE id = $1', [productId])).rowCount, 0)
+  assert.equal(
+    (
+      await pool.query('SELECT product_id FROM cart_items WHERE product_id = $1', [productId])
+    ).rowCount,
+    0,
+  )
+
+  const history = await pool.query<{
+    name: string
+    slug: string
+    price: number
+  }>(
+    `SELECT product_name AS name, product_slug AS slug, price_uah AS price
+     FROM order_items
+     JOIN orders ON orders.id = order_items.order_id
+     WHERE orders.code = $1`,
+    [created.body.order.code],
+  )
+  assert.deepEqual(history.rows, [
+    { name: 'Product delete-history', slug: 'product-delete-history', price: 1000 },
+  ])
+  const reservation = await pool.query<{ state: string }>(
+    `SELECT inventory_reservations.state
+     FROM inventory_reservations
+     JOIN orders ON orders.id = inventory_reservations.order_id
+     WHERE orders.code = $1`,
+    [created.body.order.code],
+  )
+  assert.deepEqual(reservation.rows, [{ state: 'active' }])
+
+  assert.equal(
+    (await postCallback(callbackForm(created.body.order.code, created.body.order.total))).status,
+    200,
+  )
+  assert.equal((await paymentStatus(buyer.client, created.body.order.code)).body.order.paymentStatus, 'paid')
+  const consumed = await pool.query<{ state: string }>(
+    `SELECT inventory_reservations.state
+     FROM inventory_reservations
+     JOIN orders ON orders.id = inventory_reservations.order_id
+     WHERE orders.code = $1`,
+    [created.body.order.code],
+  )
+  assert.deepEqual(consumed.rows, [{ state: 'consumed' }])
+  assert.equal(history.rows[0]?.name, 'Product delete-history')
+
+  const cancelledProductId = await seedProduct(3, 'delete-release-history')
+  await addToCart(buyer.client, cancelledProductId)
+  const cancelledOrder = await checkout(buyer.client)
+  assert.equal(cancelledOrder.status, 201)
+  assert.equal(
+    (await admin.client.json(`/api/admin/products/${cancelledProductId}`, {
+      method: 'DELETE',
+      csrf: 'valid',
+    })).status,
+    204,
+  )
+  assert.equal(
+    (await admin.client.json(`/api/admin/products/${cancelledProductId}`, {
+      method: 'DELETE',
+      csrf: 'valid',
+    })).status,
+    204,
+  )
+  assert.equal(
+    (
+      await buyer.client.json(`/api/payments/liqpay/orders/${cancelledOrder.body.order.code}/cancel`, {
+        method: 'POST',
+        csrf: 'valid',
+      })
+    ).status,
+    200,
+  )
+  assert.equal(
+    (await paymentStatus(buyer.client, cancelledOrder.body.order.code)).body.order.paymentStatus,
+    'cancelled',
+  )
+  const released = await pool.query<{ state: string }>(
+    `SELECT inventory_reservations.state
+     FROM inventory_reservations
+     JOIN orders ON orders.id = inventory_reservations.order_id
+     WHERE orders.code = $1`,
+    [cancelledOrder.body.order.code],
+  )
+  assert.deepEqual(released.rows, [{ state: 'released' }])
+})
+
 test('expiry reconciliation and callback race safely, and unavailable provider status retains stock for reconciliation', async () => {
   const user = await register('ExpiryUser')
   const productId = await seedProduct(3, 'expiry')

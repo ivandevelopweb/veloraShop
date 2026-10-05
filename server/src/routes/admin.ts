@@ -510,20 +510,32 @@ adminRouter.delete(
   asyncHandler(async (request, response) => {
     const { id } = idSchema.parse(request.params)
     const auth = (request as AuthRequest).auth!
-    await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       await lockAdminProduct(client, id)
       const product = await getAdminProduct(id, client)
-      await client.query(
-        `UPDATE products
-         SET status = 'archived', is_available = FALSE, updated_at = NOW()
-         WHERE id = $1`,
-        [id],
-      )
-      await writeAudit(client, auth.userId, 'product.archived', 'product', String(id), {
+      if (product.status !== 'archived') {
+        await client.query(
+          `UPDATE products
+           SET status = 'archived', is_available = FALSE, updated_at = NOW()
+           WHERE id = $1`,
+          [id],
+        )
+        await writeAudit(client, auth.userId, 'product.archived', 'product', String(id), {
+          name: product.name,
+          reason: 'admin_archive_action',
+        })
+        return { deleted: false, images: [] }
+      }
+
+      await client.query('DELETE FROM cart_items WHERE product_id = $1', [id])
+      await writeAudit(client, auth.userId, 'product.deleted', 'product', String(id), {
         name: product.name,
-        reason: 'normal_admin_delete_is_soft_archive',
+        orderHistoryPreserved: true,
       })
+      await client.query('DELETE FROM products WHERE id = $1', [id])
+      return { deleted: true, images: product.images }
     })
+    if (result.deleted) await destroyCloudinaryImages(result.images)
     response.status(204).end()
   }),
 )

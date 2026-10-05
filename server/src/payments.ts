@@ -160,6 +160,36 @@ async function reservationRows(client: PoolClient, orderId: string) {
   return rows
 }
 
+async function updateProductStockForReservation(
+  client: PoolClient,
+  reservation: Pick<ReservationRow, 'productId' | 'quantity'>,
+  change: 'release' | 'consume',
+) {
+  const result =
+    change === 'release'
+      ? await client.query(
+          `UPDATE products
+           SET reserved_stock = reserved_stock - $1, updated_at = NOW()
+           WHERE id = $2 AND reserved_stock >= $1
+           RETURNING id`,
+          [reservation.quantity, reservation.productId],
+        )
+      : await client.query(
+          `UPDATE products
+           SET stock = stock - $1, reserved_stock = reserved_stock - $1, updated_at = NOW()
+           WHERE id = $2 AND stock >= $1 AND reserved_stock >= $1
+           RETURNING id`,
+          [reservation.quantity, reservation.productId],
+        )
+
+  if (result.rowCount) return
+
+  // A deleted catalog row has no stock counter to adjust; keep its order and
+  // reservation snapshots while still completing their payment transitions.
+  const product = await client.query('SELECT id FROM products WHERE id = $1', [reservation.productId])
+  if (product.rowCount) throw new ApiError(409, 'Порушено резервування залишку')
+}
+
 async function hasCompleteReservationSet(client: PoolClient, orderId: string) {
   const { rows } = await client.query<{ orderItemCount: string; reservationCount: string }>(
     `SELECT
@@ -238,13 +268,7 @@ async function releaseActiveReservations(
     [orderId, reason],
   )
   for (const reservation of released.sort((left, right) => left.productId - right.productId)) {
-    const update = await client.query(
-      `UPDATE products
-       SET reserved_stock = reserved_stock - $1, updated_at = NOW()
-       WHERE id = $2 AND reserved_stock >= $1`,
-      [reservation.quantity, reservation.productId],
-    )
-    if (!update.rowCount) throw new ApiError(409, 'Порушено резервування залишку')
+    await updateProductStockForReservation(client, reservation, 'release')
   }
   return { released: released.length, complete: true }
 }
@@ -274,13 +298,7 @@ async function consumeActiveReservations(client: PoolClient, orderId: string) {
     [orderId],
   )
   for (const reservation of consumed.sort((left, right) => left.productId - right.productId)) {
-    const update = await client.query(
-      `UPDATE products
-       SET stock = stock - $1, reserved_stock = reserved_stock - $1, updated_at = NOW()
-       WHERE id = $2 AND stock >= $1 AND reserved_stock >= $1`,
-      [reservation.quantity, reservation.productId],
-    )
-    if (!update.rowCount) throw new ApiError(409, 'Порушено резервування залишку')
+    await updateProductStockForReservation(client, reservation, 'consume')
   }
   return {
     consumed: consumed.length,
