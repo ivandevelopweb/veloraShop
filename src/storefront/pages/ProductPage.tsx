@@ -52,6 +52,7 @@ export function ProductView({
   const activeImage = galleryImages[activeImageIndex] ?? galleryImages[0]
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
   const atStockLimit = inCart >= item.stock
+  const outOfStock = item.stock <= 0
   const recommendations = products
     .filter((product) => product.category === item.category && product.id !== item.id)
     .slice(0, 4)
@@ -117,13 +118,15 @@ export function ProductView({
             className="add-large"
             onClick={() => onAdd(item)}
             disabled={atStockLimit}
-            title={atStockLimit ? 'У кошику вже весь доступний залишок' : 'Додати до кошика'}
+            title={outOfStock ? 'Немає в наявності' : atStockLimit ? 'У кошику вже весь доступний залишок' : 'Додати до кошика'}
           >
             {inCart ? (
               <>
                 <Icon name="check" />
                 {atStockLimit ? `У кошику: ${inCart} — увесь залишок` : `У кошику: ${inCart}`}
               </>
+            ) : outOfStock ? (
+              'Немає в наявності'
             ) : (
               <>
                 <Icon name="bag" /> Додати до кошика

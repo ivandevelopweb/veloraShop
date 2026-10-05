@@ -154,7 +154,8 @@ try {
     `INSERT INTO products (id, name, price_uah, is_available, slug, short_description, description, stock, status, rating, review_count, badge)
      VALUES
        (9001, 'Migration rating fixture', 100, TRUE, 'migration-rating-fixture', 'Fixture', 'Fixture', 1, 'active', 2.0, 10, ''),
-       (9002, 'Migration empty fixture', 100, TRUE, 'migration-empty-fixture', 'Fixture', 'Fixture', 1, 'active', 4.5, 0, '')`,
+       (9002, 'Migration empty fixture', 100, TRUE, 'migration-empty-fixture', 'Fixture', 'Fixture', 1, 'active', 4.5, 0, ''),
+       (9003, 'Velora Signature', 3490, TRUE, 'migration-brand-fixture', 'Fixture', 'Preserve this description', 1, 'active', 5.0, 1, '')`,
   ])
   await run(
     process.execPath,

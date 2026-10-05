@@ -33,6 +33,7 @@ type DatabaseProduct = {
   name: string
   shortDescription: string
   description: string
+  brand: string
   price: number
   oldPrice: number | null
   rating: string | number
@@ -52,6 +53,7 @@ const productSelect = `
     products.name,
     products.short_description AS "shortDescription",
     products.description,
+    products.brand,
     products.price_uah AS price,
     products.old_price_uah AS "oldPrice",
     products.rating,
@@ -114,7 +116,6 @@ productsRouter.get(
     const conditions = [
       "products.status = 'active'",
       'products.is_available = TRUE',
-      'products.stock > products.reserved_stock',
       '(categories.is_archived = FALSE OR categories.id IS NULL)',
     ]
     const values: Array<string | number> = []
@@ -126,7 +127,7 @@ productsRouter.get(
     if (query.search) {
       const search = addValue(query.search)
       conditions.push(
-        `(products.name ILIKE '%' || ${search} || '%' OR products.short_description ILIKE '%' || ${search} || '%')`,
+        `(products.name ILIKE '%' || ${search} || '%' OR products.brand ILIKE '%' || ${search} || '%' OR products.short_description ILIKE '%' || ${search} || '%')`,
       )
     }
     if (query.category && query.category !== 'all') {

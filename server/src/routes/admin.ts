@@ -33,6 +33,7 @@ const productEditableFieldsSchema = z
       .min(2)
       .max(160)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug має містити лише латиницю, цифри та дефіси'),
+    brand: z.string().trim().max(120).default(''),
     categoryId: categoryReferenceSchema,
     shortDescription: z.string().trim().min(2).max(240),
     description: z.string().trim().min(2).max(10_000),
@@ -100,6 +101,7 @@ const adminProductSelect = `
     products.id,
     products.slug,
     products.name,
+    products.brand,
     products.short_description AS "shortDescription",
     products.description,
     products.price_uah AS "priceUah",
@@ -145,6 +147,7 @@ type AdminProduct = {
   id: number
   slug: string
   name: string
+  brand: string
   shortDescription: string
   description: string
   priceUah: number
@@ -242,6 +245,7 @@ async function writeAudit(
 function productChanges(payload: Partial<z.infer<typeof productEditableFieldsSchema>>) {
   const columns: Array<[string, unknown]> = [
     ['name', payload.name],
+    ['brand', payload.brand],
     ['slug', payload.slug],
     ['category_id', payload.categoryId],
     ['short_description', payload.shortDescription],
@@ -407,12 +411,13 @@ adminRouter.post(
       await ensureActiveCategory(client, payload.categoryId)
       const result = await client.query<{ id: number }>(
         `INSERT INTO products (
-          name, slug, category_id, short_description, description, price_uah, old_price_uah,
+          name, brand, slug, category_id, short_description, description, price_uah, old_price_uah,
           stock, status, is_available, rating, review_count, base_rating, base_count, badge
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING id`,
         [
           payload.name,
+          payload.brand,
           payload.slug,
           payload.categoryId,
           payload.shortDescription,

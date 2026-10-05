@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   Navigate,
   Route,
@@ -34,6 +34,7 @@ import {
   accountPath,
   catalogFiltersFromSearch,
   catalogPath,
+  catalogPriceBounds,
   defaultCatalogFilters,
   safeInternalPath,
 } from './paths'
@@ -105,9 +106,14 @@ function StorefrontRoutes({
   const location = useLocation()
   const navigate = useNavigate()
   const catalogMatch = location.pathname.match(/^\/catalog(?:\/([^/]+))?$/)
+  const priceBounds = useMemo(() => catalogPriceBounds(products), [products])
+  const availableBrands = useMemo(
+    () => [...new Set(products.map((product) => product.brand.trim()).filter(Boolean))],
+    [products],
+  )
   const headerFilters = catalogMatch
-    ? catalogFiltersFromSearch(location.search)
-    : defaultCatalogFilters
+    ? catalogFiltersFromSearch(location.search, priceBounds, availableBrands)
+    : defaultCatalogFilters(priceBounds)
   const availableWishlistCount = products.filter((product) => wishlist.includes(product.id)).length
 
   useEffect(() => {
@@ -127,7 +133,7 @@ function StorefrontRoutes({
       catalogPath(null, {
         ...headerFilters,
         search,
-      }),
+      }, priceBounds),
       { replace: Boolean(catalogMatch) },
     )
   }

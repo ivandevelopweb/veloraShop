@@ -661,11 +661,12 @@ test('customer and admin comments are idempotent, paginated, owned and independe
   )
 
   const initialComments = await admin.client.json<{
-    product: { id: number; rating: number; reviewCount: number; baseRating: number; baseCount: number }
+    product: { id: number; brand: string; rating: number; reviewCount: number; baseRating: number; baseCount: number }
   }>('/api/admin/products', {
     method: 'POST', csrf: true,
     body: {
       name: 'Created with notes', slug: 'created-with-notes', categoryId: null,
+      brand: 'Test Brand',
       shortDescription: 'Короткий опис', description: 'Опис товару', priceUah: 1000,
       oldPriceUah: null, stock: 3, status: 'active', rating: 3.5, reviewCount: 4, badge: '',
       initialComments: [
@@ -676,6 +677,7 @@ test('customer and admin comments are idempotent, paginated, owned and independe
   })
   assert.equal(initialComments.status, 201)
   assert.equal(initialComments.body.product.rating, 3.5)
+  assert.equal(initialComments.body.product.brand, 'Test Brand')
   assert.equal(initialComments.body.product.reviewCount, 4)
   assert.equal(initialComments.body.product.baseRating, 3.5)
   assert.equal(initialComments.body.product.baseCount, 4)
@@ -689,6 +691,20 @@ test('customer and admin comments are idempotent, paginated, owned and independe
     `/api/admin/products/${initialComments.body.product.id}/comments?page=2&pageSize=1`,
   )
   assert.equal(pageTwo.body.comments.length, 1)
+
+  const publicProduct = await admin.client.json<{
+    products: Array<{ id: number; brand: string }>
+  }>('/api/products?search=Test%20Brand&pageSize=100')
+  assert(publicProduct.body.products.some((item) =>
+    item.id === initialComments.body.product.id && item.brand === 'Test Brand',
+  ))
+
+  const brandEdit = await admin.client.json<{ product: { brand: string } }>(
+    `/api/admin/products/${initialComments.body.product.id}`,
+    { method: 'PATCH', csrf: true, body: { brand: 'Updated Brand' } },
+  )
+  assert.equal(brandEdit.status, 200)
+  assert.equal(brandEdit.body.product.brand, 'Updated Brand')
 
   const beforeEdit = await pool.query<{ rating: string; reviewCount: number }>(
     'SELECT rating::text, review_count AS "reviewCount" FROM products WHERE id = $1', [productId],

@@ -119,10 +119,10 @@ async function seedProduct(stock = 3, suffix = 'main') {
   const { rows } = await pool.query<{ id: number }>(
     `INSERT INTO products (
       name, slug, short_description, description, price_uah, stock, status,
-      is_available, rating, review_count, base_rating, base_count, badge
-    ) VALUES ($1, $2, 'Короткий опис', 'Повний опис', 1000, $3, 'active', TRUE, 0, 0, 4.8, 0, '')
+      is_available, rating, review_count, base_rating, base_count, badge, brand
+    ) VALUES ($1, $2, 'Короткий опис', 'Повний опис', 1000, $3, 'active', TRUE, 0, 0, 4.8, 0, '', $4)
      RETURNING id`,
-    [`Product ${suffix}`, `product-${suffix}`, stock],
+    [`Product ${suffix}`, `product-${suffix}`, stock, ''],
   )
   const id = rows[0]?.id
   assert(id)
@@ -202,6 +202,23 @@ after(async () => {
 
 beforeEach(async () => {
   await pool.query('TRUNCATE users, products, categories, auth_rate_limits RESTART IDENTITY CASCADE')
+})
+
+test('public catalogue includes active sold-out products and exposes the stored brand', async () => {
+  const availableId = await seedProduct(3, 'catalog-available')
+  const soldOutId = await seedProduct(0, 'catalog-sold-out')
+  await pool.query('UPDATE products SET brand = $1 WHERE id = $2', ['Test Brand', soldOutId])
+
+  const guest = new BrowserClient()
+  const response = await guest.json<{
+    products: Array<{ id: number; brand: string; stock: number }>
+  }>('/api/products?pageSize=100')
+
+  assert.equal(response.status, 200)
+  assert(response.body.products.some((product) => product.id === availableId && product.stock === 3))
+  assert(response.body.products.some((product) =>
+    product.id === soldOutId && product.stock === 0 && product.brand === 'Test Brand',
+  ))
 })
 
 test('guests are denied protected routes and CSRF protects authenticated mutations', async () => {

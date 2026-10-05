@@ -7,6 +7,7 @@ export type SeedCategory = {
 export type SeedProduct = {
   id: number
   categorySlug: string
+  brand: string
   name: string
   slug: string
   shortDescription: string
@@ -613,6 +614,10 @@ const productRows = [
   ],
 ] as const
 
+// Only assign brands present explicitly in the source data. The remaining demo
+// product lines have no reliable manufacturer field and stay unbranded.
+const explicitSeedBrands = new Map<number, string>([[50, 'Velora']])
+
 function toSlug(value: string) {
   return value
     .normalize('NFD')
@@ -643,6 +648,7 @@ export const catalog: SeedProduct[] = productRows.map(
     return {
       id: index + 1,
       categorySlug,
+      brand: explicitSeedBrands.get(index + 1) ?? '',
       name,
       slug: toSlug(name),
       shortDescription,

@@ -117,6 +117,7 @@ export function toSlug(value: string) {
 export function emptyProduct(): ProductInput {
   return {
     name: '',
+    brand: '',
     slug: '',
     categoryId: null,
     shortDescription: '',
@@ -134,6 +135,7 @@ export function emptyProduct(): ProductInput {
 export function productToInput(product: AdminProduct): ProductInput {
   return {
     name: product.name,
+    brand: product.brand,
     slug: product.slug,
     categoryId: product.categoryId,
     shortDescription: product.shortDescription,

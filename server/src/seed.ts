@@ -28,13 +28,14 @@ async function seedCatalog() {
 
       await client.query(
         `INSERT INTO products (
-          id, name, price_uah, is_available, slug, category_id, short_description, description,
+          id, name, brand, price_uah, is_available, slug, category_id, short_description, description,
           old_price_uah, stock, status, rating, review_count, base_rating, base_count, badge
         ) VALUES (
-          $1, $2, $3, TRUE, $4, $5, $6, $7, $8, $9, 'active', $10, $11, $12, $14, $13
+          $1, $2, $3, $4, TRUE, $5, $6, $7, $8, $9, $10, 'active', $11, $12, $13, $15, $14
         )
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
+          brand = EXCLUDED.brand,
           price_uah = EXCLUDED.price_uah,
           is_available = TRUE,
           slug = EXCLUDED.slug,
@@ -50,6 +51,7 @@ async function seedCatalog() {
         [
           product.id,
           product.name,
+          product.brand,
           product.priceUah,
           product.slug,
           categoryId,

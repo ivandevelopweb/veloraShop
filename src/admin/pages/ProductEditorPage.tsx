@@ -117,6 +117,7 @@ export function ProductEditor({
       const result = product
         ? await api.admin.updateProduct(product.id, {
             name: draft.name,
+            brand: draft.brand,
             slug: draft.slug,
             categoryId: draft.categoryId,
             shortDescription: draft.shortDescription,
@@ -387,6 +388,16 @@ export function ProductEditor({
                 }}
                 placeholder="Наприклад, Quiet Morning"
               />
+            </label>
+            <label>
+              Бренд
+              <input
+                maxLength={120}
+                value={draft.brand}
+                onChange={(event) => update('brand', event.target.value)}
+                placeholder="Наприклад, Garnier"
+              />
+              <small>Залиште порожнім, якщо бренд товару невідомий.</small>
             </label>
             <label>
               Slug

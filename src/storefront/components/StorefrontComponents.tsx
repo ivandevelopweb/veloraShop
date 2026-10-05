@@ -11,6 +11,7 @@ const price = formatPrice
 export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
   const inCart = cart.find((product) => product.id === item.id)?.quantity || 0
   const atStockLimit = inCart >= item.stock
+  const outOfStock = item.stock <= 0
   const imageSource = item.image ?? item.images?.[0]?.url ?? null
   const hasDiscount = item.oldPrice !== null && item.oldPrice > item.price
   return (
@@ -61,10 +62,10 @@ export function ProductCard({ item, cart, isWishlisted, onAdd, onWish }) {
             className={`add-card ${inCart ? 'added' : ''}`}
             onClick={() => onAdd(item)}
             disabled={atStockLimit}
-            title={atStockLimit ? 'У кошику вже весь доступний залишок' : 'Додати до кошика'}
+            title={outOfStock ? 'Немає в наявності' : atStockLimit ? 'У кошику вже весь доступний залишок' : 'Додати до кошика'}
           >
             <Icon name={inCart ? 'check' : 'bag'} size={17} />
-            <span>{inCart ? `У кошику · ${inCart}` : 'До кошика'}</span>
+            <span>{outOfStock ? 'Немає в наявності' : inCart ? `У кошику · ${inCart}` : 'До кошика'}</span>
           </button>
         </div>
       </div>

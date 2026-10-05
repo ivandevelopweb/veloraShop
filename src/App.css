@@ -1746,11 +1746,212 @@
   white-space: nowrap;
 }
 
-.app-shell .filter-group input[type='range'] {
+.app-shell .filter-group h3 {
+  margin: 0;
+  color: var(--velora-text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.app-shell .filter-group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.app-shell .filter-group-title output {
+  color: var(--velora-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-shell .price-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.app-shell .price-inputs > label {
+  min-width: 0;
+  display: grid;
+  align-items: start;
+  justify-content: stretch;
+  gap: 4px;
+  color: var(--velora-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.app-shell .price-input-wrap {
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-bg);
+  color: var(--velora-muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.app-shell .price-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 5px 0 8px;
+  border: 0;
+  border-radius: var(--velora-radius-control);
+  background: transparent;
+  font-size: 14px;
+  line-height: 20px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.app-shell .price-input-wrap input::-webkit-inner-spin-button,
+.app-shell .price-input-wrap input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.app-shell .price-input-wrap > span {
+  padding-right: 7px;
+}
+
+.app-shell .dual-range-control {
+  height: 24px;
+  position: relative;
+  margin: 0 7px;
+}
+
+.app-shell .dual-range-track {
+  height: 4px;
+  position: absolute;
+  top: 10px;
+  right: 0;
+  left: 0;
+  border-radius: 2px;
+}
+
+.app-shell .dual-range-control input[type='range'] {
+  width: calc(100% + 14px);
+  height: 24px;
+  position: absolute;
+  top: 0;
+  left: -7px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+  accent-color: var(--velora-primary);
+}
+
+.app-shell .dual-range-min {
+  z-index: 2;
+}
+
+.app-shell .dual-range-max {
+  z-index: 1;
+}
+
+.app-shell .dual-range-control input[type='range']:focus-visible {
+  z-index: 3;
+}
+
+.app-shell .dual-range-control input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+}
+
+.app-shell .dual-range-control input[type='range']::-moz-range-track {
+  height: 4px;
+  background: transparent;
+}
+
+.app-shell .dual-range-control input[type='range']::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--velora-primary);
+  border-radius: 50%;
+  background: var(--velora-bg);
+  cursor: grab;
+  appearance: none;
+  pointer-events: auto;
+}
+
+.app-shell .dual-range-control input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--velora-primary);
+  border-radius: 50%;
+  background: var(--velora-bg);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.app-shell .dual-range-control input[type='range']:active::-webkit-slider-thumb,
+.app-shell .dual-range-control input[type='range']:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+.app-shell .dual-range-control input[type='range']:focus-visible {
+  outline: 0;
+}
+
+.app-shell .dual-range-control input[type='range']:focus-visible::-webkit-slider-thumb,
+.app-shell .dual-range-control input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--velora-primary);
+  outline-offset: 2px;
+}
+
+.app-shell .dual-range-control input[type='range']:disabled {
+  cursor: not-allowed;
+}
+
+.app-shell .dual-range-control input[type='range']:disabled::-webkit-slider-thumb,
+.app-shell .dual-range-control input[type='range']:disabled::-moz-range-thumb {
+  border-color: var(--velora-muted);
+  cursor: not-allowed;
+}
+
+.app-shell .filter-group .rating-range {
   width: 100%;
   min-height: 24px;
   margin: 0;
   accent-color: var(--velora-primary);
+}
+
+.app-shell .brand-search {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-bg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.app-shell .brand-option-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.app-shell .brand-option-list .check-filter {
+  min-height: 44px;
+}
+
+.app-shell .filter-empty {
+  margin: 0;
+  color: var(--velora-muted);
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .app-shell .range-labels {
@@ -1879,22 +2080,36 @@
   .app-shell .filters.is-open {
     display: flex;
     position: fixed;
-    z-index: 30;
+    z-index: 50;
     inset: 0;
     padding: 16px;
     background: rgb(36 36 36 / 24%);
   }
 
   .app-shell .filters.is-open .filter-sheet-card {
+    display: flex;
+    flex-direction: column;
     width: min(520px, 100%);
     max-height: calc(100vh - 32px);
-    overflow: auto;
+    overflow: hidden;
     margin: auto;
     padding: 16px;
     border: 1px solid var(--velora-line);
     border-radius: var(--velora-radius-surface);
     background: var(--velora-bg);
     box-shadow: 0 8px 24px rgb(36 36 36 / 10%);
+  }
+
+  .app-shell .filters.is-open .filter-heading,
+  .app-shell .filters.is-open .filter-sheet-actions {
+    flex: 0 0 auto;
+  }
+
+  .app-shell .filters.is-open .filter-sheet-content {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .app-shell .filters.is-open .filter-close {
@@ -1904,8 +2119,8 @@
   .app-shell .filters.is-open .filter-sheet-actions {
     display: grid;
     gap: 8px;
-    margin-top: 20px;
-    padding-top: 20px;
+    margin-top: 0;
+    padding-top: 12px;
     border-top: 1px solid var(--velora-line);
   }
 

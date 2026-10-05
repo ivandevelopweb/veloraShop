@@ -55,6 +55,33 @@ test('migration 007 preserves existing rated products as exact manual bases', as
   })
 })
 
+test('migration 008 backfills only the explicitly branded product and preserves its other fields', async () => {
+  const { rows } = await pool.query<{
+    id: number
+    name: string
+    brand: string
+    price: number
+    description: string
+  }>(
+    `SELECT id, name, brand, price_uah AS price, description
+     FROM products
+     WHERE id IN (9001, 9002, 9003)
+     ORDER BY id`,
+  )
+
+  assert.deepEqual(rows, [
+    { id: 9001, name: 'Migration rating fixture', brand: '', price: 100, description: 'Fixture' },
+    { id: 9002, name: 'Migration empty fixture', brand: '', price: 100, description: 'Fixture' },
+    {
+      id: 9003,
+      name: 'Velora Signature',
+      brand: 'Velora',
+      price: 3490,
+      description: 'Preserve this description',
+    },
+  ])
+})
+
 test('repeated seed leaves a reset base and existing buyer votes intact', async () => {
   const productId = catalog[0]!.id
   const userId = randomUUID()

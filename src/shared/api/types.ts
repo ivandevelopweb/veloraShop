@@ -17,6 +17,7 @@ export type StorefrontProduct = {
   id: number
   slug: string
   name: string
+  brand: string
   shortDescription: string
   description: string
   price: number
@@ -52,6 +53,7 @@ export type AdminProduct = {
   id: number
   slug: string
   name: string
+  brand: string
   shortDescription: string
   description: string
   priceUah: number
@@ -105,6 +107,7 @@ export type AdminOrderDetails = AdminOrder & {
 
 export type ProductInput = {
   name: string
+  brand: string
   slug: string
   categoryId: string | null
   shortDescription: string
