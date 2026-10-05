@@ -82,6 +82,45 @@ test('migration 008 backfills only the explicitly branded product and preserves 
   ])
 })
 
+test('migration 009 backfills reliable title brands without overwriting curated values or product data', async () => {
+  const { rows } = await pool.query<{
+    id: number
+    name: string
+    brand: string
+    price: number
+    description: string
+  }>(
+    `SELECT id, name, brand, price_uah AS price, description
+     FROM products
+     WHERE id IN (9004, 9005, 9006)
+     ORDER BY id`,
+  )
+
+  assert.deepEqual(rows, [
+    {
+      id: 9004,
+      name: 'Garnier Fructis Hair Food Banana 3-in-1 Mask',
+      brand: 'Garnier',
+      price: 899,
+      description: 'Preserve Garnier description',
+    },
+    {
+      id: 9005,
+      name: 'Moroccanoil Treatment Original',
+      brand: 'Curated Brand',
+      price: 1200,
+      description: 'Preserve Moroccanoil description',
+    },
+    {
+      id: 9006,
+      name: 'Beauty of Joseon Glow Serum : Propolis + Niacinamide',
+      brand: 'Beauty of Joseon',
+      price: 750,
+      description: 'Preserve Joseon description',
+    },
+  ])
+})
+
 test('repeated seed leaves a reset base and existing buyer votes intact', async () => {
   const productId = catalog[0]!.id
   const userId = randomUUID()

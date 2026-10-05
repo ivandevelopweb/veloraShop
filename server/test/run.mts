@@ -155,7 +155,37 @@ try {
      VALUES
        (9001, 'Migration rating fixture', 100, TRUE, 'migration-rating-fixture', 'Fixture', 'Fixture', 1, 'active', 2.0, 10, ''),
        (9002, 'Migration empty fixture', 100, TRUE, 'migration-empty-fixture', 'Fixture', 'Fixture', 1, 'active', 4.5, 0, ''),
-       (9003, 'Velora Signature', 3490, TRUE, 'migration-brand-fixture', 'Fixture', 'Preserve this description', 1, 'active', 5.0, 1, '')`,
+       (9003, 'Velora Signature', 3490, TRUE, 'migration-brand-fixture', 'Fixture', 'Preserve this description', 1, 'active', 5.0, 1, ''),
+       (9004, 'Garnier Fructis Hair Food Banana 3-in-1 Mask', 899, TRUE, 'migration-garnier-fixture', 'Fixture', 'Preserve Garnier description', 2, 'active', 4.5, 2, ''),
+       (9005, 'Moroccanoil Treatment Original', 1200, TRUE, 'migration-moroccanoil-fixture', 'Fixture', 'Preserve Moroccanoil description', 3, 'active', 4.6, 3, ''),
+       (9006, 'Beauty of Joseon Glow Serum : Propolis + Niacinamide', 750, TRUE, 'migration-joseon-fixture', 'Fixture', 'Preserve Joseon description', 4, 'active', 4.7, 4, '')`,
+  ])
+  await run(
+    process.execPath,
+    [
+      'node_modules/node-pg-migrate/bin/node-pg-migrate.js',
+      '-m',
+      'server/migrations',
+      '--database-url',
+      migrationDatabaseUrl,
+      '--verbose=false',
+      'up',
+      '2',
+    ],
+    { env: migrationEnvironment },
+  )
+  await run('docker', [
+    'exec',
+    container,
+    'psql',
+    '-U',
+    'velora_test',
+    '-d',
+    'velora_migration',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-c',
+    "UPDATE products SET brand = 'Curated Brand' WHERE id = 9005",
   ])
   await run(
     process.execPath,
