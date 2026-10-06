@@ -18,7 +18,7 @@ import {
   getAssistantRequestHashes,
   type AssistantRequest,
 } from '../assistant/rate-limit.js'
-import { processAssistantMessage, type AssistantProcessingResult } from '../assistant/service.js'
+import { processAssistantMessage, type AssistantProcessingResult, type AssistantDiagnostics } from '../assistant/service.js'
 import { requireCsrf } from '../security.js'
 
 const assistantRouter = Router()
@@ -38,10 +38,11 @@ assistantRouter.post(
     let result: AssistantProcessingResult | undefined
     let thrownError: unknown
     let status = 'failed'
+    const diagnostics: AssistantDiagnostics = { stage: 'validation', timings: {} }
 
     try {
       payload = assistantMessageRequestSchema.parse(request.body)
-      result = await processAssistantMessage(payload, assistantRequest.assistantRateLimit?.remainingRequests ?? 0)
+      result = await processAssistantMessage(payload, assistantRequest.assistantRateLimit?.remainingRequests ?? 0, undefined, diagnostics)
       status = result.status
     } catch (error) {
       if (error instanceof AssistantProviderError) {
@@ -54,8 +55,15 @@ assistantRouter.post(
         })
         thrownError = new ApiError(503, assistantUnavailableMessage)
       } else {
-        status = error instanceof ZodError ? 'invalid_request' : 'failed'
-        thrownError = error
+        const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+        if (/^(?:[0-9A-Z]{5}|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND)$/u.test(code)) {
+          status = 'database_error'
+          diagnostics.databaseError = { stage: diagnostics.stage, code }
+          thrownError = new ApiError(500, 'Не вдалося прочитати каталог. Спробуйте ще раз пізніше.')
+        } else {
+          status = error instanceof ZodError ? 'invalid_request' : 'failed'
+          thrownError = error
+        }
       }
     } finally {
       try {
@@ -65,14 +73,15 @@ assistantRouter.post(
           clientHash: hashes.clientHash,
           ipHash: hashes.ipHash,
           userMessage: rawMessage,
-          detectedIntent: result?.detectedIntent ?? null,
-          classifierResult: result?.classifierResult ?? null,
-          candidateProductIds: result?.candidateProductIds ?? [],
+          detectedIntent: result?.detectedIntent ?? diagnostics.classifier?.intent ?? null,
+          classifierResult: result?.classifierResult ?? diagnostics.classifier ?? null,
+          candidateProductIds: result?.candidateProductIds ?? diagnostics.candidateProductIds ?? [],
           recommendedProductIds: result?.recommendedProductIds ?? [],
           assistantAnswer: result?.answer ?? null,
-          language: result?.language ?? null,
+          language: result?.language ?? diagnostics.classifier?.language ?? null,
           latencyMs: Math.max(0, Date.now() - startedAt),
           status,
+          diagnostics,
         })
       } catch (loggingError) {
         console.error(
@@ -89,6 +98,7 @@ assistantRouter.post(
       answer: result.answer,
       products: result.products,
       remainingRequests: assistantRequest.assistantRateLimit?.remainingRequests ?? 0,
+      mode: result.mode,
     })
   }),
 )

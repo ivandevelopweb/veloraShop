@@ -22,7 +22,7 @@ function run(command: string, args: string[], options: RunOptions = {}) {
     child.once('error', reject)
     child.once('close', (code) => {
       if (code === 0) resolve(stdout)
-      else reject(new Error(`${command} ${args.join(' ')} exited with ${code}: ${stderr}`))
+      else reject(new Error(`${command} exited with ${code}: ${stderr}`))
     })
   })
 }
@@ -226,12 +226,14 @@ try {
     ],
     { env: environment },
   )
-  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/integration.test.mts'], {
-    env: environment,
-  })
-  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/reviews.integration.test.mts'], {
-    env: environment,
-  })
+  if (!process.argv.includes('--assistant-only')) {
+    await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/integration.test.mts'], {
+      env: environment,
+    })
+    await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/reviews.integration.test.mts'], {
+      env: environment,
+    })
+  }
   await run(
     process.execPath,
     ['--import', 'tsx', '--test', 'server/test/assistant.integration.test.mts'],
@@ -239,6 +241,13 @@ try {
       env: environment,
     },
   )
+  if (process.argv.includes('--assistant-preview')) {
+    await run('docker', ['exec', container, 'psql', '-U', 'velora_test', '-d', 'velora_test',
+      '-v', 'ON_ERROR_STOP=1', '-c',
+      'TRUNCATE assistant_interactions, assistant_rate_limit_events, products, categories RESTART IDENTITY CASCADE'])
+    await run(process.execPath, ['--import', 'tsx', 'server/src/seed.ts'], { env: environment })
+    await run(process.execPath, ['--import', 'tsx', 'server/test/assistant-preview.mts'], { env: environment })
+  }
 } finally {
   if (started) await run('docker', ['rm', '--force', container]).catch(() => undefined)
 }

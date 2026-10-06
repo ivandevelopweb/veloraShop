@@ -18,6 +18,8 @@ type AssistantChatMessage = {
   products?: AssistantProduct[]
   interactionId?: string
   feedback?: Feedback
+  failed?: boolean
+  mode?: 'model' | 'social' | 'catalogue'
 }
 
 function createId() {
@@ -33,7 +35,10 @@ function createId() {
 
 function getClientId() {
   const saved = readStoredString(assistantClientIdKey)
-  if (saved && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved)) {
+  if (
+    saved &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved)
+  ) {
     return saved
   }
   const created = createId()
@@ -45,7 +50,11 @@ function ProductRecommendation({ product }: { product: AssistantProduct }) {
   return (
     <Link className="assistant-product" to={productPath(product.slug)}>
       <span className="assistant-product-image">
-        {product.image ? <img src={product.image} alt={product.name} loading="lazy" /> : <Icon name="gift" size={20} />}
+        {product.image ? (
+          <img src={product.image} alt={product.name} loading="lazy" />
+        ) : (
+          <Icon name="gift" size={20} />
+        )}
       </span>
       <span className="assistant-product-copy">
         <strong>{product.name}</strong>
@@ -70,27 +79,59 @@ export function AssistantWidget() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Вітаю! Я допоможу знайти товар, порівняти варіанти та підкажу про доставку, оплату й магазин.',
+      content:
+        'Вітаю! Я допоможу знайти товар, порівняти варіанти та підкажу про доставку, оплату й магазин.',
     },
   ])
   const messagesRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const sendingRef = useRef(false)
+  const [retryRequest, setRetryRequest] = useState<{
+    message: string
+    history: AssistantHistoryEntry[]
+    userMessageId: string
+  } | null>(null)
 
   useEffect(() => {
-    if (open) messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' })
+    if (open)
+      messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, loading, open])
 
-  const submit = async () => {
-    const message = draft.trim()
-    if (!message || message.length > 500 || loading) return
+  useEffect(() => {
+    if (open && !loading) inputRef.current?.focus()
+  }, [open, loading])
 
-    const history: AssistantHistoryEntry[] = messages
-      .slice(-assistantHistoryLimit)
-      .map(({ role, content }) => ({ role, content }))
-    setMessages((current) => [...current, { id: createId(), role: 'user', content: message }])
+  const submit = async (retry = false) => {
+    const retrying = Boolean(retryRequest && (retry || draft.trim() === retryRequest.message))
+    const message = retrying && retryRequest ? retryRequest.message : draft.trim()
+    if (!message || message.length > 500 || sendingRef.current) return
+    sendingRef.current = true
+
+    const history: AssistantHistoryEntry[] =
+      retrying && retryRequest
+        ? [...retryRequest.history]
+        : messages
+            .filter((entry) => !entry.failed)
+            .slice(-assistantHistoryLimit)
+            .map(({ role, content, products }) => ({
+              role,
+              content,
+              ...(role === 'assistant'
+                ? { productIds: products?.map((product) => product.id) ?? [] }
+                : {}),
+            }))
+    // JSON is capped at 20 kB server-side; retain recent turns within a safe UTF-8 budget.
+    while (new TextEncoder().encode(JSON.stringify(history)).length > 14_000) history.shift()
+    const userMessageId = retrying && retryRequest ? retryRequest.userMessageId : createId()
+    setMessages((current) =>
+      retrying
+        ? current.map((entry) => (entry.id === userMessageId ? { ...entry, failed: false } : entry))
+        : [...current, { id: userMessageId, role: 'user', content: message }],
+    )
     setDraft('')
     setError('')
     setLoading(true)
+    setRetryRequest(null)
 
     try {
       const response = await api.sendAssistantMessage({ message, history, clientId, sessionId })
@@ -103,9 +144,17 @@ export function AssistantWidget() {
           content: response.answer,
           products: response.products,
           interactionId: response.interactionId,
+          mode: response.mode,
         },
       ])
     } catch (requestError) {
+      setMessages((current) =>
+        current.map((entry) => (entry.id === userMessageId ? { ...entry, failed: true } : entry)),
+      )
+      setDraft(message)
+      if (!(requestError instanceof ApiClientError) || requestError.status >= 500) {
+        setRetryRequest({ message, history, userMessageId })
+      }
       setError(
         requestError instanceof ApiClientError
           ? requestError.message
@@ -113,7 +162,8 @@ export function AssistantWidget() {
       )
     } finally {
       setLoading(false)
-      window.requestAnimationFrame(() => inputRef.current?.focus())
+      sendingRef.current = false
+      inputRef.current?.focus()
     }
   }
 
@@ -128,7 +178,9 @@ export function AssistantWidget() {
       })
       setMessages((current) =>
         current.map((item) =>
-          item.interactionId === message.interactionId ? { ...item, feedback: response.feedback } : item,
+          item.interactionId === message.interactionId
+            ? { ...item, feedback: response.feedback }
+            : item,
         ),
       )
     } catch {
@@ -141,24 +193,47 @@ export function AssistantWidget() {
   return (
     <div className={`assistant-widget ${open ? 'is-open' : ''}`}>
       {open && (
-        <section id="velora-assistant-panel" className="assistant-panel" role="dialog" aria-label="AI-помічник Velora">
+        <section
+          id="velora-assistant-panel"
+          className="assistant-panel"
+          role="dialog"
+          aria-label="AI-помічник Velora"
+        >
           <header className="assistant-panel-header">
             <div>
               <p className="eyebrow">Velora</p>
               <h2>AI-помічник</h2>
             </div>
-            <button className="assistant-close" type="button" onClick={() => setOpen(false)} aria-label="Закрити AI-помічника">
+            <button
+              className="assistant-close"
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Закрити AI-помічника"
+            >
               <Icon name="close" size={18} />
             </button>
           </header>
 
           <div className="assistant-messages" ref={messagesRef} aria-live="polite">
             {messages.map((message) => (
-              <div key={message.id} className={`assistant-message assistant-message-${message.role}`}>
+              <div
+                key={message.id}
+                className={`assistant-message assistant-message-${message.role}`}
+              >
                 <div className="assistant-message-bubble">
                   <p>{message.content}</p>
+                  {message.failed && (
+                    <small className="assistant-message-note">Відповідь не отримано</small>
+                  )}
                   {message.products && message.products.length > 0 && (
-                    <div className="assistant-products" aria-label="Рекомендовані товари">
+                    <div
+                      className="assistant-products"
+                      aria-label={
+                        message.mode === 'catalogue'
+                          ? 'Знайдено в каталозі'
+                          : 'Рекомендовані товари'
+                      }
+                    >
                       {message.products.map((product) => (
                         <ProductRecommendation key={product.id} product={product} />
                       ))}
@@ -171,7 +246,9 @@ export function AssistantWidget() {
                       type="button"
                       className={message.feedback === 'like' ? 'active' : ''}
                       onClick={() => void submitFeedback(message, 'like')}
-                      disabled={Boolean(message.feedback) || feedbackLoadingId === message.interactionId}
+                      disabled={
+                        Boolean(message.feedback) || feedbackLoadingId === message.interactionId
+                      }
                       aria-label="Корисна відповідь"
                       aria-pressed={message.feedback === 'like'}
                     >
@@ -181,7 +258,9 @@ export function AssistantWidget() {
                       type="button"
                       className={message.feedback === 'dislike' ? 'active' : ''}
                       onClick={() => void submitFeedback(message, 'dislike')}
-                      disabled={Boolean(message.feedback) || feedbackLoadingId === message.interactionId}
+                      disabled={
+                        Boolean(message.feedback) || feedbackLoadingId === message.interactionId
+                      }
                       aria-label="Некорисна відповідь"
                       aria-pressed={message.feedback === 'dislike'}
                     >
@@ -203,7 +282,21 @@ export function AssistantWidget() {
             )}
           </div>
 
-          {error && <p className="assistant-error" role="alert">{error}</p>}
+          {error && (
+            <div className="assistant-error" role="alert">
+              <p>{error}</p>
+              {retryRequest && (
+                <button
+                  type="button"
+                  className="assistant-retry"
+                  disabled={loading}
+                  onClick={() => void submit(true)}
+                >
+                  Спробувати ще раз
+                </button>
+              )}
+            </div>
+          )}
           <form
             className="assistant-composer"
             onSubmit={(event) => {
@@ -215,7 +308,16 @@ export function AssistantWidget() {
               ref={inputRef}
               value={draft}
               maxLength={500}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                setDraft(event.target.value)
+                setRetryRequest(null)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault()
+                  void submit()
+                }
+              }}
               placeholder="Напишіть запит про товари чи магазин"
               aria-label="Повідомлення для AI-помічника"
               rows={2}
@@ -226,7 +328,12 @@ export function AssistantWidget() {
                 {draft.length > 400 ? `${draft.length}/500` : 'До 500 символів'}
               </span>
               {remainingRequests !== null && <small>Залишилось: {remainingRequests}</small>}
-              <button className="assistant-send" type="submit" disabled={!draft.trim() || loading} aria-label="Надіслати повідомлення">
+              <button
+                className="assistant-send"
+                type="submit"
+                disabled={!draft.trim() || loading}
+                aria-label="Надіслати повідомлення"
+              >
                 <Icon name="arrow" size={17} />
               </button>
             </div>
@@ -238,7 +345,6 @@ export function AssistantWidget() {
         type="button"
         onClick={() => {
           setOpen((current) => !current)
-          setError('')
         }}
         aria-expanded={open}
         aria-controls="velora-assistant-panel"

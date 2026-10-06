@@ -26,7 +26,7 @@ async function start() {
   let reconciliationTimer: NodeJS.Timeout | undefined
   // A product request can make three provider calls, each with one bounded
   // retry. Keep the HTTP budget aligned with that deliberate retry budget.
-  const assistantRequestBudget = config.gemini.timeoutMs * 2 * 3 + 5_000
+  const assistantRequestBudget = config.gemini.timeoutMs * 2 * 2 + 10_000
   server.requestTimeout = Math.max(45_000, assistantRequestBudget)
   server.headersTimeout = server.requestTimeout + 5_000
   server.keepAliveTimeout = 5_000

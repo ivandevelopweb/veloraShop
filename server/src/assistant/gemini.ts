@@ -21,6 +21,8 @@ export type AssistantProviderErrorKind =
   | 'model_not_found'
   | 'rate_limited'
   | 'request_rejected'
+  | 'timeout'
+  | 'network'
 
 export class AssistantProviderError extends Error {
   constructor(
@@ -65,18 +67,11 @@ function isAbortError(error: unknown) {
   return error instanceof Error && error.name === 'AbortError'
 }
 
-function diagnosticExcerpt(value: string) {
-  const withoutControlCharacters = [...value]
-    .filter((character) => {
-      const code = character.charCodeAt(0)
-      return code >= 32 && code !== 127
-    })
-    .join('')
-  return withoutControlCharacters
-    .replace(/\s+/g, ' ')
-    .replace(/((?:api[-_ ]?key|authorization|token)\s*[:=]\s*)[^,}\s]+/gi, '$1[redacted]')
-    .trim()
-    .slice(0, 1_000)
+function providerDiagnostic(status: number, body: string) {
+  // Persist only our own labels, never provider bodies, echoed input or credentials.
+  if (/API_KEY_INVALID|API key not valid|invalid api key/iu.test(body)) return 'API key not valid'
+  if (status === 429) return isHardQuotaFailure(body) ? 'quota_exhausted' : 'provider_rate_limit'
+  return `provider_http_${status}`
 }
 
 function parseRetryAfterMs(response: Response) {
@@ -98,8 +93,8 @@ function isRetryableHttpStatus(status: number, body: string, retryAfterMs: numbe
   return retryAfterMs === undefined || retryAfterMs <= 2_000
 }
 
-function providerErrorKind(status: number): AssistantProviderErrorKind {
-  if (status === 401 || status === 403) return 'auth'
+function providerErrorKind(status: number, body: string): AssistantProviderErrorKind {
+  if (status === 401 || status === 403 || (status === 400 && /API_KEY_INVALID|API key not valid|invalid api key/iu.test(body))) return 'auth'
   if (status === 404) return 'model_not_found'
   if (status === 429) return 'rate_limited'
   if (status >= 400 && status < 500) return 'request_rejected'
@@ -162,7 +157,7 @@ export class GeminiHttpProvider implements AssistantAiProvider {
   ): Promise<unknown> {
     if (!this.options.apiKey) {
       console.error('Gemini provider configuration failure', { reason: 'missing_api_key' })
-      throw new AssistantProviderError('Gemini API key is not configured')
+      throw new AssistantProviderError('Gemini API key is not configured', 'unavailable', undefined, 'missing_api_key')
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
@@ -213,7 +208,7 @@ export class GeminiHttpProvider implements AssistantAiProvider {
             status: response.status,
             attempt,
             retrying: retryable,
-            body: diagnosticExcerpt(body),
+            reason: providerDiagnostic(response.status, body),
           })
           if (retryable) {
             await new Promise((resolve) => setTimeout(resolve, backoffMs(attempt, retryAfterMs)))
@@ -221,9 +216,9 @@ export class GeminiHttpProvider implements AssistantAiProvider {
           }
           throw new AssistantProviderError(
             'Gemini request was rejected',
-            providerErrorKind(response.status),
+            providerErrorKind(response.status, body),
             response.status,
-            diagnosticExcerpt(body),
+            providerDiagnostic(response.status, body),
           )
         }
 
@@ -255,7 +250,7 @@ export class GeminiHttpProvider implements AssistantAiProvider {
           attempt,
           retrying: retryable,
           timeout: timedOut,
-          error: error instanceof Error ? error.message : 'unknown error',
+          reason: timedOut ? 'timeout' : 'network_error',
         })
         if (retryable) {
           await new Promise((resolve) => setTimeout(resolve, backoffMs(attempt, undefined)))
@@ -263,7 +258,7 @@ export class GeminiHttpProvider implements AssistantAiProvider {
         }
         throw new AssistantProviderError(
           'Gemini request was unavailable',
-          'unavailable',
+          timedOut ? 'timeout' : 'network',
           undefined,
           timedOut ? 'timeout' : 'network_error',
         )

@@ -14,6 +14,7 @@ export type AssistantInteractionLog = {
   language: string | null
   latencyMs: number
   status: string
+  diagnostics?: unknown
 }
 
 export async function persistAssistantInteraction(interaction: AssistantInteractionLog) {
@@ -21,8 +22,8 @@ export async function persistAssistantInteraction(interaction: AssistantInteract
     `INSERT INTO assistant_interactions (
        id, session_id, client_hash, ip_hash, user_message, detected_intent,
        classifier_result, candidate_product_ids, recommended_product_ids,
-       assistant_answer, language, latency_ms, status
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13)`,
+       assistant_answer, language, latency_ms, status, diagnostics
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, $14::jsonb)`,
     [
       interaction.id,
       interaction.sessionId,
@@ -37,6 +38,7 @@ export async function persistAssistantInteraction(interaction: AssistantInteract
       interaction.language,
       interaction.latencyMs,
       interaction.status,
+      JSON.stringify(interaction.diagnostics ?? {}),
     ],
   )
 }

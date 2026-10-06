@@ -229,6 +229,7 @@ export type CheckoutDetails = {
 export type AssistantHistoryEntry = {
   role: 'user' | 'assistant'
   content: string
+  productIds?: number[]
 }
 
 export type AssistantProduct = {
@@ -251,4 +252,5 @@ export type AssistantMessageResponse = {
   answer: string
   products: AssistantProduct[]
   remainingRequests: number
+  mode: 'model' | 'social' | 'catalogue'
 }

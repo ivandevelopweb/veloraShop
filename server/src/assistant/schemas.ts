@@ -14,6 +14,7 @@ export const assistantIntents = [
   'returns',
   'contacts',
   'promotions',
+  'social',
   'out_of_scope',
 ] as const
 
@@ -22,7 +23,10 @@ const userHistoryEntrySchema = z
   .strict()
 
 const assistantHistoryEntrySchema = z
-  .object({ role: z.literal('assistant'), content: z.string().trim().min(1).max(1500) })
+  .object({
+    role: z.literal('assistant'), content: z.string().trim().min(1).max(1500),
+    productIds: z.array(z.number().int().positive()).max(6).optional(),
+  })
   .strict()
 
 export const assistantHistorySchema = z
@@ -67,6 +71,8 @@ export const assistantClassifierSchema = z
     language: z.enum(assistantLanguages),
     requiresExactStock: z.boolean(),
     externalCurrentInfo: z.boolean(),
+    categoryExplicit: z.boolean().default(false),
+    requestedCount: z.number().int().min(1).max(6).default(3),
   })
   .strict()
 
@@ -78,6 +84,7 @@ export const assistantFinalAnswerSchema = z
   .object({
     answer: z.string().trim().min(1).max(1500),
     productIds: z.array(z.number().int().positive()).max(6),
+    outcome: z.enum(['matched', 'clarification', 'no_match']).default('matched'),
   })
   .strict()
 

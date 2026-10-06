@@ -3691,6 +3691,7 @@
 .app-shell .assistant-panel {
   width: min(390px, calc(100vw - 32px));
   height: min(650px, calc(100vh - 112px));
+  height: min(650px, calc(100dvh - 112px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   overflow: hidden;
@@ -3933,6 +3934,38 @@
   color: var(--velora-danger);
   font-size: 12px;
   line-height: 17px;
+}
+
+.app-shell .assistant-error p {
+  margin: 0;
+}
+
+.app-shell .assistant-retry {
+  margin-top: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--velora-field-line);
+  border-radius: var(--velora-radius-control);
+  background: var(--velora-bg);
+  color: var(--velora-primary);
+  font-weight: 600;
+}
+
+.app-shell .assistant-retry:focus-visible {
+  outline: 2px solid var(--velora-primary);
+  outline-offset: 2px;
+}
+
+.app-shell .assistant-message-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--velora-muted);
+}
+
+.app-shell .assistant-message-user .assistant-message-note {
+  color: #ffffff;
+  opacity: 0.85;
 }
 
 .app-shell .assistant-composer {
