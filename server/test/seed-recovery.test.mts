@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import test, { after, beforeEach } from 'node:test'
 import type { SeedCategory, SeedProduct } from '../src/catalog.js'
 import { pool, withTransaction } from '../src/db.js'
-import { incidentCatalogue, recoverySql } from '../migrations/012_seed_deployment_recovery.mts'
+import { incidentCatalogue, recoverySql, restoreSql } from '../migrations/012_seed_deployment_recovery.mts'
 
 if (process.env.NODE_ENV !== 'test' || new URL(process.env.DATABASE_URL!).hostname !== '127.0.0.1') {
   throw new Error('Run recovery tests only through the isolated Docker test runner')
@@ -14,7 +14,7 @@ const incidentTime = '2026-10-06T11:11:27.313987Z'
 
 after(async () => { await pool.end() })
 beforeEach(async () => {
-  await pool.query('TRUNCATE products, categories, orders, users RESTART IDENTITY CASCADE')
+  await pool.query('TRUNCATE products, categories, orders, users, catalogue_recovery_backups RESTART IDENTITY CASCADE')
 })
 
 async function fixture(timestamp = incidentTime) {
@@ -80,26 +80,34 @@ test('recovery ignores empty databases and seed rows created outside the inciden
   assert.equal(await activeCount(), 100)
 })
 
-test('recovery archives precisely 50 incident rows, preserves originals and images, and is repeatable', async () => {
+test('recovery undoes precisely 50 accidental inserts with exact backups and reversible restoration', async () => {
   await fixture()
   // An existing seed category may share a slug; its metadata must stay intact.
   await pool.query("UPDATE categories SET created_at='2026-10-05', updated_at='2026-10-05' WHERE slug='parfumeriia'")
   const originalProducts = (await pool.query('SELECT to_jsonb(p) row FROM products p WHERE id > 50 ORDER BY id')).rows
+  const allProducts = (await pool.query('SELECT to_jsonb(p) row FROM products p ORDER BY id')).rows
+  const allCategories = (await pool.query('SELECT to_jsonb(c) row FROM categories c ORDER BY slug')).rows
   const existingCategories = (await pool.query("SELECT to_jsonb(c) row FROM categories c WHERE created_at < '2026-10-06' ORDER BY slug")).rows
   const images = (await pool.query('SELECT to_jsonb(i) row FROM product_images i ORDER BY product_id')).rows
   await recover()
   assert.equal(await activeCount(), 50)
-  assert.equal(Number((await pool.query('SELECT COUNT(*) FROM products')).rows[0].count), 100)
-  assert.equal(Number((await pool.query("SELECT COUNT(*) FROM products WHERE id <= 50 AND status='archived' AND NOT is_available")).rows[0].count), 50)
+  assert.equal(Number((await pool.query('SELECT COUNT(*) FROM products')).rows[0].count), 50)
+  assert.equal(Number((await pool.query('SELECT COUNT(*) FROM products WHERE id <= 50')).rows[0].count), 0)
   assert.deepEqual((await pool.query('SELECT to_jsonb(p) row FROM products p WHERE id > 50 ORDER BY id')).rows, originalProducts)
   assert.deepEqual((await pool.query("SELECT to_jsonb(c) row FROM categories c WHERE created_at < '2026-10-06' ORDER BY slug")).rows, existingCategories)
-  assert.deepEqual((await pool.query('SELECT to_jsonb(i) row FROM product_images i ORDER BY product_id')).rows, images)
+  const backup = (await pool.query("SELECT product_records, image_records FROM catalogue_recovery_backups WHERE incident_key='2026-10-06-render-seed'")).rows[0]
+  assert.deepEqual(backup.product_records, allProducts.filter(p => p.row.id <= 50).map(p => p.row))
+  assert.deepEqual(backup.image_records, images.map(i => i.row))
   assert.equal(Number((await pool.query('SELECT COUNT(*) FROM categories WHERE is_archived')).rows[0].count), 6)
   await recover()
   assert.equal(await activeCount(), 50)
+  await withTransaction((client) => client.query(restoreSql))
+  assert.deepEqual((await pool.query('SELECT to_jsonb(p) row FROM products p ORDER BY id')).rows, allProducts)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(i) row FROM product_images i ORDER BY product_id')).rows, images)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(c) row FROM categories c ORDER BY slug')).rows, allCategories)
 })
 
-test('partial incident set stops recovery without archiving other rows', async () => {
+test('partial incident set stops recovery without removing other rows', async () => {
   await fixture()
   await pool.query('DELETE FROM products WHERE id=50')
   await assert.rejects(recover, /incident product set differs/)
@@ -152,20 +160,53 @@ test('older closed order and released reservation snapshots survive recovery byt
 test('an order created after reinsertion still stops recovery even if already closed', async () => {
   await fixture()
   await orderHistory('2026-10-06T12:00:00Z')
-  await assert.rejects(recover, /"no_new_or_pending_order": false/)
+  await assert.rejects(recover, /"no_new_order": false/)
   assert.equal(await activeCount(), 100)
 })
 
-test('an older active reservation stops recovery even if reserved_stock is zero', async () => {
+test('an older orphan active reservation remains untouched when its reused seed ID is removed', async () => {
   await fixture()
   await orderHistory('2026-10-05T10:00:00Z', 'active')
-  await assert.rejects(recover, /"no_active_or_new_reservation": false/)
+  const reservations = (await pool.query('SELECT to_jsonb(r) row FROM inventory_reservations r')).rows
+  await recover()
+  assert.equal(await activeCount(), 50)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(r) row FROM inventory_reservations r')).rows, reservations)
+})
+
+test('an older pending payment survives undoing accidental seed inserts unchanged', async () => {
+  await fixture()
+  await orderHistory('2026-10-05T10:00:00Z', undefined, true)
+  const orders = (await pool.query('SELECT to_jsonb(o) row FROM orders o')).rows
+  await recover()
+  assert.equal(await activeCount(), 50)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(o) row FROM orders o')).rows, orders)
+})
+
+test('a reservation created after the accidental insert stops recovery regardless of state', async () => {
+  await fixture()
+  await orderHistory('2026-10-05T10:00:00Z', 'released')
+  await pool.query("UPDATE inventory_reservations SET created_at='2026-10-06T12:00:00Z'")
+  await assert.rejects(recover, /"no_new_reservation": false/)
   assert.equal(await activeCount(), 100)
 })
 
-test('an older pending payment stops recovery even without a reservation', async () => {
+test('cart references stop recovery without deleting or changing user carts', async () => {
   await fixture()
-  await orderHistory('2026-10-05T10:00:00Z', undefined, true)
-  await assert.rejects(recover, /"no_new_or_pending_order": false/)
+  const userId = randomUUID()
+  await pool.query("INSERT INTO users (id,name,email,password_hash) VALUES ($1,'Fixture',$2,'unused-test-hash')", [userId, `${userId}@example.test`])
+  await pool.query('INSERT INTO cart_items (user_id,product_id,quantity) VALUES ($1,3,1)', [userId])
+  await assert.rejects(recover, /"no_cart_items": false/)
   assert.equal(await activeCount(), 100)
+  assert.equal((await pool.query('SELECT quantity FROM cart_items WHERE user_id=$1', [userId])).rows[0].quantity, 1)
+})
+
+test('restore refuses conflicting IDs and changed categories without altering originals', async () => {
+  await fixture()
+  await recover()
+  await pool.query("INSERT INTO products (id,name,price_uah,is_available) VALUES (3,'Replacement',100,TRUE)")
+  await assert.rejects(() => withTransaction(client => client.query(restoreSql)), /backed-up product IDs are unavailable/)
+  await pool.query('DELETE FROM products WHERE id=3')
+  await pool.query("UPDATE categories SET updated_at=updated_at+interval '1 second' WHERE slug='dim'")
+  await assert.rejects(() => withTransaction(client => client.query(restoreSql)), /recovered category changed/)
+  assert.equal(await activeCount(), 50)
 })
