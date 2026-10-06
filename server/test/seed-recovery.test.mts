@@ -14,7 +14,7 @@ const incidentTime = '2026-10-06T11:11:27.313987Z'
 
 after(async () => { await pool.end() })
 beforeEach(async () => {
-  await pool.query('TRUNCATE products, categories RESTART IDENTITY CASCADE')
+  await pool.query('TRUNCATE products, categories, orders, users RESTART IDENTITY CASCADE')
 })
 
 async function fixture(timestamp = incidentTime) {
@@ -48,6 +48,25 @@ async function fixture(timestamp = incidentTime) {
 }
 
 const recover = () => withTransaction((client) => client.query(recoverySql))
+async function orderHistory(timestamp: string, reservation?: 'released' | 'active', pending = false) {
+  const userId = randomUUID()
+  const orderId = randomUUID()
+  await pool.query(`INSERT INTO users (id,name,email,password_hash)
+    VALUES ($1,'Recovery fixture',$2,'unused-test-hash')`, [userId, `${userId}@example.test`])
+  await pool.query(`INSERT INTO orders
+    (id,code,user_id,status,total_uah,delivery_method,delivery_city,delivery_branch,
+     customer_name,customer_phone,customer_email,payment_status,payment_updated_at,created_at,updated_at)
+    VALUES ($1,$2,$3,'cancelled',100,'test','Test','Test','Test','Test','test@example.test',$4,$5,$5,$5)`,
+  [orderId, `recovery-${orderId.slice(0, 12)}`, userId, pending ? 'pending' : 'cancelled', timestamp])
+  await pool.query(`INSERT INTO order_items (order_id,product_id,product_name,price_uah,quantity,product_slug)
+    VALUES ($1,3,'Historical Cloud Cleanser',100,1,'historical-cloud-cleanser')`, [orderId])
+  if (reservation) {
+    await pool.query(`INSERT INTO inventory_reservations
+      (order_id,product_id,quantity,state,expires_at,released_at,created_at)
+      VALUES ($1,3,1,$2::text,$3::timestamptz,CASE WHEN $2::text='released' THEN $3::timestamptz ELSE NULL END,$3::timestamptz)`,
+    [orderId, reservation, timestamp])
+  }
+}
 async function activeCount() {
   return Number((await pool.query("SELECT COUNT(*) FROM products WHERE status = 'active' AND is_available")).rows[0].count)
 }
@@ -114,5 +133,39 @@ test('updated incident record stops recovery even when seed content is unchanged
   await fixture()
   await pool.query("UPDATE products SET updated_at='2026-10-06T12:00:00Z' WHERE id=3")
   await assert.rejects(recover, /content, stock or history changed/)
+  assert.equal(await activeCount(), 100)
+})
+
+test('older closed order and released reservation snapshots survive recovery byte for byte', async () => {
+  await fixture()
+  await orderHistory('2026-10-05T10:00:00Z', 'released')
+  const orders = (await pool.query('SELECT to_jsonb(o) row FROM orders o')).rows
+  const items = (await pool.query('SELECT to_jsonb(i) row FROM order_items i')).rows
+  const reservations = (await pool.query('SELECT to_jsonb(r) row FROM inventory_reservations r')).rows
+  await recover()
+  assert.equal(await activeCount(), 50)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(o) row FROM orders o')).rows, orders)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(i) row FROM order_items i')).rows, items)
+  assert.deepEqual((await pool.query('SELECT to_jsonb(r) row FROM inventory_reservations r')).rows, reservations)
+})
+
+test('an order created after reinsertion still stops recovery even if already closed', async () => {
+  await fixture()
+  await orderHistory('2026-10-06T12:00:00Z')
+  await assert.rejects(recover, /"no_new_or_pending_order": false/)
+  assert.equal(await activeCount(), 100)
+})
+
+test('an older active reservation stops recovery even if reserved_stock is zero', async () => {
+  await fixture()
+  await orderHistory('2026-10-05T10:00:00Z', 'active')
+  await assert.rejects(recover, /"no_active_or_new_reservation": false/)
+  assert.equal(await activeCount(), 100)
+})
+
+test('an older pending payment stops recovery even without a reservation', async () => {
+  await fixture()
+  await orderHistory('2026-10-05T10:00:00Z', undefined, true)
+  await assert.rejects(recover, /"no_new_or_pending_order": false/)
   assert.equal(await activeCount(), 100)
 })

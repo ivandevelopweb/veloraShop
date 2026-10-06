@@ -62,8 +62,13 @@ BEGIN
       'stock', p.stock, 'imageUrl', (SELECT url FROM product_images WHERE product_id = p.id LIMIT 1)
     ) = expected AS original_public_fields,
     (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) = 1 AS single_image,
-    NOT EXISTS (SELECT 1 FROM order_items WHERE product_id = p.id) AS no_order_history,
-    NOT EXISTS (SELECT 1 FROM inventory_reservations WHERE product_id = p.id) AS no_reservation_history,
+    -- 010 deliberately lets completed order/reservation snapshots outlive deleted
+    -- catalogue IDs. Old history must not be mistaken for a new seed-row sale.
+    NOT EXISTS (SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
+      WHERE oi.product_id = p.id AND (o.created_at >= p.created_at
+        OR o.payment_status IN ('pending', 'reconciliation_required'))) AS no_new_or_pending_order,
+    NOT EXISTS (SELECT 1 FROM inventory_reservations r WHERE r.product_id = p.id
+      AND (r.state = 'active' OR r.created_at >= p.created_at)) AS no_active_or_new_reservation,
     NOT EXISTS (SELECT 1 FROM product_ratings WHERE product_id = p.id) AS no_rating_history,
     NOT EXISTS (SELECT 1 FROM product_comments WHERE product_id = p.id) AS no_comment_history
     FROM jsonb_array_elements(snapshot->'products') expected
