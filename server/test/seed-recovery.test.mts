@@ -90,7 +90,15 @@ test('partial incident set stops recovery without archiving other rows', async (
 test('changed product content stops recovery atomically even without an updated_at change', async () => {
   await fixture()
   await pool.query('UPDATE products SET price_uah=price_uah+1 WHERE id=3')
-  await assert.rejects(recover, /content, stock or history changed/)
+  await assert.rejects(recover, (error: Error) => {
+    assert.match(error.message, /content, stock or history changed/)
+    const checks = JSON.parse(error.message.split('Checks: ')[1]!)
+    assert.equal(checks.length, 1)
+    assert.equal(checks[0].id, 3)
+    assert.equal(checks[0].original_public_fields, false)
+    assert.ok(Object.entries(checks[0]).every(([key, value]) => key === 'id' || typeof value === 'boolean'))
+    return true
+  })
   assert.equal(await activeCount(), 100)
 })
 

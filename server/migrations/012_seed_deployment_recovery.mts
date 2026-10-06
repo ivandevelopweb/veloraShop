@@ -16,6 +16,8 @@ DECLARE
   incident_count INTEGER;
   timestamp_count INTEGER;
   verified_count INTEGER;
+  incident_checks JSONB;
+  failed_checks JSONB;
 BEGIN
   -- Prevent a concurrent stock/content mutation between verification and archive.
   LOCK TABLE products IN SHARE ROW EXCLUSIVE MODE;
@@ -39,32 +41,45 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT COUNT(*) INTO verified_count
-  FROM jsonb_array_elements(snapshot->'products') expected
-  JOIN products p ON p.id = (expected->>'id')::integer
-  JOIN categories c ON c.id = p.category_id
-  WHERE date_trunc('milliseconds', p.created_at) = incident_time
-    AND p.updated_at = p.created_at
-    AND p.status = 'active' AND p.is_available = TRUE AND p.reserved_stock = 0
-    AND p.attributes = '{}'::jsonb AND p.ai_tags = ARRAY[]::text[] AND p.ai_priority = 0
-    AND p.rating_epoch = 0 AND p.rating_revision = 0
-    AND p.base_rating = (expected->>'rating')::numeric
-    AND p.base_count = (expected->>'reviewCount')::bigint
-    AND jsonb_build_object(
+  -- Diagnostics contain only public IDs and Boolean checks, never field values.
+  SELECT jsonb_agg(to_jsonb(checks)) INTO incident_checks FROM (
+    SELECT p.id,
+    date_trunc('milliseconds', p.created_at) = incident_time AS incident_timestamp,
+    p.updated_at = p.created_at AS unchanged_timestamp,
+    p.status = 'active' AND p.is_available = TRUE AS active,
+    p.reserved_stock = 0 AS no_reserved_stock,
+    p.attributes = '{}'::jsonb AS empty_attributes,
+    p.ai_tags = ARRAY[]::text[] AS empty_ai_tags,
+    p.ai_priority = 0 AS default_ai_priority,
+    p.rating_epoch = 0 AND p.rating_revision = 0 AS original_rating_version,
+    p.base_rating = (expected->>'rating')::numeric AS original_base_rating,
+    p.base_count = (expected->>'reviewCount')::bigint AS original_base_count,
+    jsonb_build_object(
       'id', p.id, 'categorySlug', c.slug, 'brand', p.brand, 'name', p.name,
       'slug', p.slug, 'shortDescription', p.short_description, 'description', p.description,
       'priceUah', p.price_uah, 'oldPriceUah', p.old_price_uah,
       'rating', p.rating, 'reviewCount', p.review_count, 'badge', p.badge,
       'stock', p.stock, 'imageUrl', (SELECT url FROM product_images WHERE product_id = p.id LIMIT 1)
-    ) = expected
-    AND (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) = 1
-    AND NOT EXISTS (SELECT 1 FROM order_items WHERE product_id = p.id)
-    AND NOT EXISTS (SELECT 1 FROM inventory_reservations WHERE product_id = p.id)
-    AND NOT EXISTS (SELECT 1 FROM product_ratings WHERE product_id = p.id)
-    AND NOT EXISTS (SELECT 1 FROM product_comments WHERE product_id = p.id);
+    ) = expected AS original_public_fields,
+    (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) = 1 AS single_image,
+    NOT EXISTS (SELECT 1 FROM order_items WHERE product_id = p.id) AS no_order_history,
+    NOT EXISTS (SELECT 1 FROM inventory_reservations WHERE product_id = p.id) AS no_reservation_history,
+    NOT EXISTS (SELECT 1 FROM product_ratings WHERE product_id = p.id) AS no_rating_history,
+    NOT EXISTS (SELECT 1 FROM product_comments WHERE product_id = p.id) AS no_comment_history
+    FROM jsonb_array_elements(snapshot->'products') expected
+    JOIN products p ON p.id = (expected->>'id')::integer
+    LEFT JOIN categories c ON c.id = p.category_id
+  ) checks;
+
+  SELECT COUNT(*) INTO verified_count FROM jsonb_array_elements(incident_checks) checked
+  WHERE NOT EXISTS (SELECT 1 FROM jsonb_each(checked) field
+    WHERE field.key <> 'id' AND field.value IS DISTINCT FROM 'true'::jsonb);
 
   IF verified_count <> 50 THEN
-    RAISE EXCEPTION 'Seed recovery stopped: product content, stock or history changed';
+    SELECT jsonb_agg(checked) INTO failed_checks FROM jsonb_array_elements(incident_checks) checked
+    WHERE EXISTS (SELECT 1 FROM jsonb_each(checked) field
+      WHERE field.key <> 'id' AND field.value IS DISTINCT FROM 'true'::jsonb);
+    RAISE EXCEPTION 'Seed recovery stopped: product content, stock or history changed. Checks: %', failed_checks;
   END IF;
 
   -- Retain every record, image and identifier. Only public availability changes.
