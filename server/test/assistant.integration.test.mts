@@ -417,6 +417,40 @@ test('greetings, gratitude and identity work without Gemini, with CSRF still enf
   assert.equal(rejected.status, 403)
 })
 
+test('the screenshot gift request asks a useful question without Gemini or invented products', async () => {
+  setAssistantProviderForTests({ generateStructured: async () => { throw new Error('must not call') } })
+  const response = await chat('порекомендуй подарунок для дівчини')
+  assert.equal(response.status, 200)
+  assert.equal(response.body.mode, 'clarification')
+  assert.match(response.body.answer, /бюджет/iu)
+  assert.deepEqual(response.body.products, [])
+  const followup = await chat('порадь подарунок для мами', [{ role: 'user', content: 'до 500 грн' }])
+  assert.equal(followup.status, 200)
+  assert.match(followup.body.answer, /Що їй подобається/iu)
+})
+
+test('a specific gift requirement still reaches semantic matching with one shared deadline', async () => {
+  const id = await seedProduct(349, 'Dry hair mask')
+  const deadlines: number[] = []
+  const start = Date.now()
+  setAssistantProviderForTests({
+    generateStructured: async (prompt, _schema, _tokens, options) => {
+      assert(options)
+      deadlines.push(options.deadlineMs)
+      return prompt.startsWith('Classify') ? baseClassifier : {
+        answer: 'Маска з каталогу.', productIds: [id], outcome: 'matched',
+      }
+    },
+  })
+  const response = await chat('Порадь подарунок для дівчини із сухим волоссям')
+  assert.equal(response.status, 200)
+  assert.equal(response.body.mode, 'model')
+  assert.deepEqual(response.body.products.map((product) => product.id), [id])
+  assert.equal(deadlines.length, 2)
+  assert.equal(deadlines[0], deadlines[1])
+  assert(deadlines[0]! >= start + 30_000 && deadlines[0]! <= Date.now() + 30_000)
+})
+
 test('Garnier below twelve popular products survives unknown category and missing attributes', async () => {
   const category = await pool.query<{ id: string }>(
     "INSERT INTO categories (id, name, slug) VALUES ($1, 'Догляд за волоссям', 'hair') RETURNING id",
@@ -880,4 +914,59 @@ test('the Gemini adapter retries transient failures but does not retry permanent
     },
   )
   assert.equal(authAttempts, 1)
+})
+
+test('Gemini 503 and timeouts switch models within two attempts and reuse a healthy fallback', async () => {
+  for (const failure of ['503', 'timeout'] as const) {
+    const models: string[] = []
+    const provider = new GeminiHttpProvider({
+      apiKey: 'fixture', model: 'gemini-3.1-flash-lite',
+      fallbackModels: ['gemini-3.5-flash-lite'], timeoutMs: 15,
+      fetchImpl: async (input, init) => {
+        models.push(new URL(String(input)).pathname.split('/').at(-1)!)
+        const body = JSON.parse(String(init?.body))
+        assert.equal(body.generationConfig.temperature, 1)
+        if (models.length === 1) {
+          if (failure === '503') return new Response('{}', { status: 503 })
+          await new Promise<void>((_resolve, reject) => {
+            init!.signal!.addEventListener('abort', () => reject(new DOMException('fixture', 'AbortError')), { once: true })
+          })
+        }
+        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }))
+      },
+    })
+    assert.deepEqual(await provider.generateStructured('fixture', {}, 100), { ok: true })
+    assert.deepEqual(models, ['gemini-3.1-flash-lite:generateContent', 'gemini-3.5-flash-lite:generateContent'])
+    assert.deepEqual(await provider.generateStructured('next stage', {}, 100), { ok: true })
+    assert.equal(models[2], 'gemini-3.5-flash-lite:generateContent')
+  }
+})
+
+test('model failover never retries invalid credentials, schema errors or exhausted quota', async () => {
+  for (const [status, body] of [[401, '{}'], [400, 'invalid schema'], [429, 'RESOURCE_EXHAUSTED quota']] as const) {
+    let calls = 0
+    const provider = new GeminiHttpProvider({
+      apiKey: 'fixture', model: 'primary', fallbackModels: ['fallback'], timeoutMs: 1000,
+      fetchImpl: async () => { calls++; return new Response(body, { status }) },
+    })
+    await assert.rejects(provider.generateStructured('fixture', {}, 100), AssistantProviderError)
+    assert.equal(calls, 1)
+  }
+})
+
+test('the shared deadline stops retries and aborts provider work still in flight', async () => {
+  let calls = 0
+  const provider = new GeminiHttpProvider({
+    apiKey: 'fixture', model: 'primary', fallbackModels: ['fallback'], timeoutMs: 1000,
+    fetchImpl: async (_input, init) => {
+      calls++
+      await new Promise<void>((_resolve, reject) => {
+        init!.signal!.addEventListener('abort', () => reject(new DOMException('fixture', 'AbortError')), { once: true })
+      })
+      throw new Error('unreachable')
+    },
+  })
+  await assert.rejects(provider.generateStructured('fixture', {}, 100, { deadlineMs: Date.now() + 20 }),
+    (error: unknown) => error instanceof AssistantProviderError && error.kind === 'timeout' && error.diagnostic === 'request_deadline')
+  assert.equal(calls, 1)
 })

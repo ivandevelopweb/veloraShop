@@ -84,6 +84,31 @@ export function explicitCount(message: string): number | null {
   return numeric ? Math.min(6, Math.max(1, Number(numeric))) : null
 }
 
+// A recipient alone gives no preferences. Ask for a budget without depending on Gemini.
+// Anchor the whole message so specific hair/skin needs and product names still reach the model.
+export function giftClarification(payload: AssistantMessageRequest) {
+  const text = payload.message.toLowerCase().replace(/[!?.,:;]/gu, '').trim()
+  const broadGift = /^(?:(?:порадь(?:те)?|порекомендуй(?:те)?|підбери|посоветуй|подбери|recommend|suggest)\s+)?(?:подарунок|подарок|(?:a\s+)?gift)(?:\s+(?:для|for)\s+(?:дівчини|девушки|жінки|женщины|мами|мамы|a girlfriend|my girlfriend|my wife|my mother))?$/iu.test(text)
+  if (!broadGift) return null
+  const language = messageLanguage(payload.message)
+  const prices = explicitPrices(payload)
+  const hasBudget = prices.minPrice !== null || prices.maxPrice !== null
+  return {
+    language,
+    answer: language === 'ru'
+      ? hasBudget
+        ? 'Что ей нравится: парфюмерия, уход или макияж? Подберём подарок с учётом вашего бюджета.'
+        : 'Помогу выбрать подарок! На какой бюджет в гривнах рассчитываете?'
+      : language === 'en'
+        ? hasBudget
+          ? 'What does she like: fragrance, skincare or makeup? We can choose a gift within your budget.'
+          : 'I can help choose a gift! What is your budget in Ukrainian hryvnias?'
+        : hasBudget
+          ? 'Що їй подобається: парфумерія, догляд чи макіяж? Підберемо подарунок з урахуванням вашого бюджету.'
+          : 'Допоможу вибрати подарунок! На який бюджет у гривнях розраховуєте?',
+  }
+}
+
 export function conversationReference(payload: AssistantMessageRequest) {
   const previous = [...payload.history]
     .reverse()

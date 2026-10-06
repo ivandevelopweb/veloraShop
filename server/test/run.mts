@@ -100,6 +100,7 @@ try {
     GEMINI_API_KEY: '',
     GEMINI_MODEL: 'gemini-3.1-flash-lite',
     GEMINI_TIMEOUT_MS: '2000',
+    GEMINI_FALLBACK_MODELS: '',
     TEST_PASSWORD: testPassword,
     ADMIN_EMAIL: 'test-admin@example.test',
     ADMIN_PASSWORD: testPassword,

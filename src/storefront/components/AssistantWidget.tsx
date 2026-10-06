@@ -19,7 +19,7 @@ type AssistantChatMessage = {
   interactionId?: string
   feedback?: Feedback
   failed?: boolean
-  mode?: 'model' | 'social' | 'catalogue'
+  mode?: 'model' | 'social' | 'catalogue' | 'clarification'
 }
 
 function createId() {

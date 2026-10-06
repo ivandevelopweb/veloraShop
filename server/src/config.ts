@@ -62,6 +62,7 @@ const rawConfig = z
       .max(120)
       .default('gemini-3.1-flash-lite'),
     GEMINI_TIMEOUT_MS: z.coerce.number().int().min(2_000).max(60_000).default(12_000),
+    GEMINI_FALLBACK_MODELS: z.string().max(500).default('gemini-3.5-flash-lite'),
   })
   .refine(
     (value) => Boolean(value.ADMIN_EMAIL) === Boolean(value.ADMIN_PASSWORD),
@@ -173,5 +174,6 @@ export const config = {
     apiKey: rawConfig.GEMINI_API_KEY,
     model: rawConfig.GEMINI_MODEL,
     timeoutMs: rawConfig.GEMINI_TIMEOUT_MS,
+    fallbackModels: rawConfig.GEMINI_FALLBACK_MODELS.split(',').map((model) => model.trim()).filter(Boolean).slice(0, 1),
   },
 }

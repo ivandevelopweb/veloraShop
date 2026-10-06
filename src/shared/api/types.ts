@@ -252,5 +252,5 @@ export type AssistantMessageResponse = {
   answer: string
   products: AssistantProduct[]
   remainingRequests: number
-  mode: 'model' | 'social' | 'catalogue'
+  mode: 'model' | 'social' | 'catalogue' | 'clarification'
 }

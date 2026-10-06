@@ -8,6 +8,7 @@ export type AssistantAiProvider = {
     prompt: string,
     schema: GeminiJsonSchema,
     maxOutputTokens: number,
+    options?: { deadlineMs: number },
   ) => Promise<unknown>
 }
 
@@ -138,12 +139,15 @@ function parseGeminiResponse(body: string) {
 
 export class GeminiHttpProvider implements AssistantAiProvider {
   private readonly fetchImpl: typeof fetch
+  private preferredModel: string | undefined
+  private preferredUntil = 0
 
   constructor(
     private readonly options: {
       apiKey?: string
       model: string
       timeoutMs: number
+      fallbackModels?: string[]
       fetchImpl?: typeof fetch
     },
   ) {
@@ -154,19 +158,37 @@ export class GeminiHttpProvider implements AssistantAiProvider {
     prompt: string,
     schema: GeminiJsonSchema,
     maxOutputTokens: number,
+    callOptions?: { deadlineMs: number },
   ): Promise<unknown> {
     if (!this.options.apiKey) {
       console.error('Gemini provider configuration failure', { reason: 'missing_api_key' })
       throw new AssistantProviderError('Gemini API key is not configured', 'unavailable', undefined, 'missing_api_key')
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-      this.options.model,
-    )}:generateContent`
+    const configuredModels = [...new Set([this.options.model, ...(this.options.fallbackModels ?? [])])]
+    const models = this.preferredModel && Date.now() < this.preferredUntil
+      ? [this.preferredModel, ...configuredModels.filter((model) => model !== this.preferredModel)]
+      : configuredModels
+    const deadlineMs = callOptions?.deadlineMs ?? Date.now() + this.options.timeoutMs * maxProviderAttempts + 2_000
+    const waitBeforeRetry = async (attempt: number, retryAfterMs: number | undefined) => {
+      const delay = backoffMs(attempt, retryAfterMs)
+      if (Date.now() + delay >= deadlineMs)
+        throw new AssistantProviderError('Gemini deadline exceeded', 'timeout', undefined, 'request_deadline')
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
 
     for (let attempt = 1; attempt <= maxProviderAttempts; attempt += 1) {
+      const remainingMs = deadlineMs - Date.now()
+      if (remainingMs <= 0)
+        throw new AssistantProviderError('Gemini deadline exceeded', 'timeout', undefined, 'request_deadline')
+      const model = models[Math.min(attempt - 1, models.length - 1)]!
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs)
+      // Leave time for a different model instead of spending both attempts on an overloaded one.
+      const attemptTimeoutMs = models.length > 1 && attempt === 1
+        ? Math.min(this.options.timeoutMs, 8_000)
+        : this.options.timeoutMs
+      const timeout = setTimeout(() => controller.abort(), Math.min(attemptTimeoutMs, remainingMs))
 
       try {
         const response = await this.fetchImpl(endpoint, {
@@ -193,7 +215,7 @@ export class GeminiHttpProvider implements AssistantAiProvider {
                 },
               },
               maxOutputTokens,
-              temperature: 0.2,
+              temperature: model.startsWith('gemini-3') ? 1 : 0.2,
             },
           }),
         })
@@ -204,14 +226,14 @@ export class GeminiHttpProvider implements AssistantAiProvider {
           const retryable =
             attempt < maxProviderAttempts && isRetryableHttpStatus(response.status, body, retryAfterMs)
           console.error('Gemini provider HTTP failure', {
-            model: this.options.model,
+            model,
             status: response.status,
             attempt,
             retrying: retryable,
             reason: providerDiagnostic(response.status, body),
           })
           if (retryable) {
-            await new Promise((resolve) => setTimeout(resolve, backoffMs(attempt, retryAfterMs)))
+            await waitBeforeRetry(attempt, retryAfterMs)
             continue
           }
           throw new AssistantProviderError(
@@ -223,20 +245,26 @@ export class GeminiHttpProvider implements AssistantAiProvider {
         }
 
         try {
-          return parseGeminiResponse(body)
+          const result = parseGeminiResponse(body)
+          if (model !== this.options.model) {
+            this.preferredModel = model
+            this.preferredUntil = Date.now() + 60_000
+            console.info('Gemini fallback response accepted', { model, attempt })
+          }
+          return result
         } catch (error) {
           const outputError =
             error instanceof AssistantModelOutputError ? error : new AssistantModelOutputError()
           const retryable = attempt < maxProviderAttempts
           console.error('Gemini provider response failure', {
-            model: this.options.model,
+            model,
             status: response.status,
             attempt,
             retrying: retryable,
             reason: outputError.diagnostic ?? 'invalid_structured_output',
           })
           if (retryable) {
-            await new Promise((resolve) => setTimeout(resolve, backoffMs(attempt, undefined)))
+            await waitBeforeRetry(attempt, undefined)
             continue
           }
           throw outputError
@@ -246,14 +274,14 @@ export class GeminiHttpProvider implements AssistantAiProvider {
         const timedOut = isAbortError(error)
         const retryable = attempt < maxProviderAttempts
         console.error('Gemini provider network failure', {
-          model: this.options.model,
+          model,
           attempt,
           retrying: retryable,
           timeout: timedOut,
           reason: timedOut ? 'timeout' : 'network_error',
         })
         if (retryable) {
-          await new Promise((resolve) => setTimeout(resolve, backoffMs(attempt, undefined)))
+          await waitBeforeRetry(attempt, undefined)
           continue
         }
         throw new AssistantProviderError(

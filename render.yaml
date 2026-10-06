@@ -30,3 +30,5 @@ services:
         value: gemini-3.1-flash-lite
       - key: GEMINI_TIMEOUT_MS
         value: "12000"
+      - key: GEMINI_FALLBACK_MODELS
+        value: gemini-3.5-flash-lite

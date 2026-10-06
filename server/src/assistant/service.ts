@@ -25,6 +25,7 @@ import {
   explicitPrices,
   messageLanguage,
   socialReply,
+  giftClarification,
 } from './conversation.js'
 import {
   classifyPrompt,
@@ -44,7 +45,7 @@ export type AssistantDiagnostics = {
   ignoredFilters?: string[]
   effectiveFilters?: AssistantClassifier['filters']
   providerError?: { stage: string; kind: string; status?: number; reason?: string }
-  mode?: 'model' | 'social' | 'catalogue'
+  mode?: 'model' | 'social' | 'catalogue' | 'clarification'
   rejectedProductIds?: number[]
   databaseError?: { stage: string; code: string }
 }
@@ -57,7 +58,7 @@ export type AssistantProcessingResult = {
   recommendedProductIds: number[]
   language: AssistantLanguage
   status: 'success' | 'out_of_scope' | 'degraded'
-  mode: 'model' | 'social' | 'catalogue'
+  mode: 'model' | 'social' | 'catalogue' | 'clarification'
 }
 const productIntents = new Set<AssistantIntent>([
   'product_search',
@@ -253,7 +254,11 @@ export async function processAssistantMessage(
   }
   const social = socialReply(payload.message)
   if (social) return makeResult(social.answer, [], null, 'social')
+  const gift = giftClarification(payload)
+  if (gift) return makeResult(gift.answer, [], null, 'clarification')
 
+  // Classification and final answer share one deadline, including retries and failover.
+  const deadlineMs = Date.now() + 30_000
   const catalogue = await measure('catalogue', readAssistantCatalogue)
   diagnostics.catalogueCount = catalogue.length
   let classifier: AssistantClassifier | null = null
@@ -266,6 +271,7 @@ export async function processAssistantMessage(
           classifyPrompt(payload, catalogue),
           classifierJsonSchema,
           900,
+          { deadlineMs },
         ),
       ),
     )
@@ -309,6 +315,7 @@ export async function processAssistantMessage(
             },
           },
           1500,
+          { deadlineMs },
         ),
       ),
     )
