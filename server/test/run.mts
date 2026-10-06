@@ -226,6 +226,9 @@ try {
     ],
     { env: environment },
   )
+  await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/seed-recovery.test.mts'], {
+    env: environment,
+  })
   if (!process.argv.includes('--assistant-only')) {
     await run(process.execPath, ['--import', 'tsx', '--test', 'server/test/integration.test.mts'], {
       env: environment,
